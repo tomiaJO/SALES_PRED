@@ -104,3 +104,11 @@ data %>%
   group_by(contact_id, purchase_date) %>%
   mutate(cum_sales = cumsum(sales_amount)) %>%
   head(15)
+
+fun_two_week_window <- function(df, iID, iDate, iWindow) {
+  df %>%
+    filter(contact_id == iID) %>%
+    filter(purchase_date >= iDate - iWindow & purchase_date < iDate)
+}
+
+fun_two_week_window(data, 884, as.Date("2013-05-14", "%Y-%m-%d"), 200)
