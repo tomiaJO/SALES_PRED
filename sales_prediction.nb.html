@@ -179,17 +179,58 @@ $(document).ready(function () {
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
 <div id="data-exploration" class="section level3">
 <h3>Data exploration</h3>
 <p>After reading in the data, let’s take a glimpse at the data structure we’ll be working with:</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
+<!-- rnb-output-begin eyJkYXRhIjoiT2JzZXJ2YXRpb25zOiA1NDQsMzg3XG5WYXJpYWJsZXM6IDZcbiQgb3JkZXJfaWQgICAgICA8aW50PiA0ODUyMTY5LCAzNTcwNTk3LCAzMjA5NjY3NCwgMjkwNDQwMiwgMzgzNjk0NzAsIDEwNTE0NjI2LCAzNjUxLi4uXG4kIGNvbnRhY3RfaWQgICAgPGludD4gMTc4NDYzMzUsIDE4NzU5NTg1LCA1MDI1MTk0LCAyOTYyNDc3OSwgNDIyODcxMTcsIDM0NDc2NTAyLCA1MC4uLlxuJCBwdXJjaGFzZV9kYXRlIDxjaHI+IFwiMjAxMi0wMS0wMVwiLCBcIjIwMTItMDEtMDFcIiwgXCIyMDEyLTAxLTAxXCIsIFwiMjAxMi0wMS0wMVwiLCBcIjIwMTIuLi5cbiQgcHJvZHVjdF9pZCAgICA8aW50PiAzMzA4MDMyLCAzNzIyMDUxMywgMTAyNTk2MDMsIDMzMDgwMzIsIDMzMDgwMzIsIDIxOTEzNjQyLCAzMDUxLi4uXG4kIHF1YW50aXR5ICAgICAgPGludD4gMSwgMiwgMSwgMSwgMSwgMiwgMSwgNCwgMSwgMSwgMSwgMSwgMSwgMSwgMSwgMSwgMSwgMiwgMSwgMSwgMS4uLlxuJCBzYWxlc19hbW91bnQgIDxkYmw+IDE4LjcxLCA4My41MCwgMTkuOTUsIDE4LjcxLCAxOC43MSwgMzkuOTAsIDQ1LjU2LCAxNTkuODAsIDIzOS4uLi5cbiJ9 -->
+<pre><code>Observations: 544,387
+Variables: 6
+$ order_id      &lt;int&gt; 4852169, 3570597, 32096674, 2904402, 38369470, 10514626, 3651...
+$ contact_id    &lt;int&gt; 17846335, 18759585, 5025194, 29624779, 42287117, 34476502, 50...
+$ purchase_date &lt;chr&gt; &quot;2012-01-01&quot;, &quot;2012-01-01&quot;, &quot;2012-01-01&quot;, &quot;2012-01-01&quot;, &quot;2012...
+$ product_id    &lt;int&gt; 3308032, 37220513, 10259603, 3308032, 3308032, 21913642, 3051...
+$ quantity      &lt;int&gt; 1, 2, 1, 1, 1, 2, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1...
+$ sales_amount  &lt;dbl&gt; 18.71, 83.50, 19.95, 18.71, 18.71, 39.90, 45.56, 159.80, 239....</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>One thing to notice is that we have a field containing fields, however R treats it as a character column by default.<br />
+We’ll fix that in the next step, but before let’s quickly check if there is any observation that we could remove right away:</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZnVuX2NvdW50X25hKGRhdGEpXG5gYGAifQ== -->
+<pre class="r"><code>fun_count_na(data)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEudGFibGUiLCJkYXRhLmZyYW1lIl0sIm5jb2wiOjIsIm5yb3ciOjZ9LCJyZGYiOiJINHNJQUFBQUFBQUFCblZTc1c3RElCQWwySEVjcTJrajlUdmlvVVAzcXAwN2RNcG1YV3pxb0JKd0QyamFyZC9kSVM2MlFYRXNCUW00T3g3M0hrKzh2V3dmc20xR0NLRWtpaU5DSXhmRzFDMHpFcE5sdDM4VEV0MzNBRUxXYmliK0lGVllNU3g0NWZPc1ZOSkFhYzZWVldPeDNJTm1SUVdHQlZpRHFySmpXUHBwUVJwdWZueCtvMEV3WGNCQldXbTZOajNwMVhHaGRpN2h3TFJYU2dQQkZ5Q0huUWdTMHRlbi9IbG9mbm01RktERDVWRE1uSGJJMzlIMW5jQ1hxSTU1NE90RTBsKzN0RzM3NTdiVEJMeFFqZUZLT2lqdHpFd25MRFBzcVByQ01NYUhkMVoyTk5XbTNGdjVzWG1jUUsvRkt4OG5vNWdPc21qcktWSlBrVEJaY3hrTW1qTkVoU0VSc0dNaVBNTzlWa01kZ0lzam9PU3k5dW10YzZRM0pHK1FPM3U5ZzY2cWM2TU1pUE5YRWFIU1cwVk8vejFCNnBDSkFnQUEifQ== -->
+<div data-pagedtable="false">
+<script data-pagedtable-source type="application/json">
+{"columns":[{"label":["variable"],"name":[1],"type":["chr"],"align":["left"]},{"label":["NA.Count"],"name":[2],"type":["int"],"align":["right"]}],"data":[{"1":"order_id","2":"0"},{"1":"contact_id","2":"0"},{"1":"purchase_date","2":"0"},{"1":"product_id","2":"0"},{"1":"quantity","2":"0"},{"1":"sales_amount","2":"0"}],"options":{"columns":{"min":{},"max":[10],"total":[2]},"rows":{"min":[10],"max":[10],"total":[6]},"pages":{}}}
+  </script>
+</div>
+<!-- rnb-frame-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZGF0YSA8LSBkYXRhICU+JVxuICAgICAgICAgIGZpbHRlcihxdWFudGl0eSA+IDAgJiBzYWxlc19hbW91bnQgPiAwKSAlPiUgIyN0aGlzIGNvdWxkIGJlIGV4cGxvcmVkIGZ1cnRlci4gRVhQTEFJTiFcbiAgICAgICAgICBtdXRhdGUocHVyY2hhc2VfZGF0ZSA9IGFzLkRhdGUocHVyY2hhc2VfZGF0ZSwgXCIlWS0lbS0lZFwiKSkgJT4lXG4gICAgICAgICAgYXJyYW5nZShjb250YWN0X2lkLCBwdXJjaGFzZV9kYXRlKSAlPiVcbiAgICAgICAgICBzZWxlY3QoY29udGFjdF9pZCwgb3JkZXJfaWQsIHB1cmNoYXNlX2RhdGUsIHByb2R1Y3RfaWQsIHF1YW50aXR5LCBzYWxlc19hbW91bnQpXG5gYGAifQ== -->
+<pre class="r"><code>data &lt;- data %&gt;%
+          filter(quantity &gt; 0 &amp; sales_amount &gt; 0) %&gt;% ##this could be explored furter. EXPLAIN!
+          mutate(purchase_date = as.Date(purchase_date, &quot;%Y-%m-%d&quot;)) %&gt;%
+          arrange(contact_id, purchase_date) %&gt;%
+          select(contact_id, order_id, purchase_date, product_id, quantity, sales_amount)</code></pre>
+<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 </div>
 
-<div id="rmd-source-code">LS0tDQp0aXRsZTogIlNhbGVzIFByZWRpY3Rpb24gRXhlcmNpc2UiDQphdXRob3I6ICJUYW1hcyBLb25jeiINCmRhdGU6ICcyMDE4LTAzLTA0Jw0Kb3V0cHV0Og0KICBodG1sX2RvY3VtZW50Og0KICAgIGRmX3ByaW50OiBwYWdlZA0KICBodG1sX25vdGVib29rOg0KICAgIGRmX3ByaW50OiBwYWdlZA0KICBwZGZfZG9jdW1lbnQ6IGRlZmF1bHQNCi0tLQ0KDQpgYGB7ciBzZXR1cCwgbWVzc2FnZT1GQUxTRSwgaW5jbHVkZT1GQUxTRX0NCmxpYnJhcnkoZGF0YS50YWJsZSkNCmxpYnJhcnkoZHBseXIpDQpsaWJyYXJ5KGx1YnJpZGF0ZSkNCmxpYnJhcnkoZ2dwbG90MikNCmxpYnJhcnkoZ3JpZEV4dHJhKQ0KbGlicmFyeShzY2FsZXMpDQpsaWJyYXJ5KHJlc2hhcGUpDQoNCmxpYnJhcnkoY2FyZXQpDQpsaWJyYXJ5KGdsbW5ldCkNCg0KbGlicmFyeShrbml0cikNCmtuaXRyOjpvcHRzX2NodW5rJHNldCh3YXJuaW5nID0gRkFMU0UpDQprbml0cjo6b3B0c19jaHVuayRzZXQobWVzc2FnZSA9IEZBTFNFKQ0KDQp0aGVtZV9zZXQodGhlbWVfbWluaW1hbCgpKSAgICMgZ2xvYmFsbHkgc2V0IGdncGxvdCB0aGVtZQ0KDQpzZXQuc2VlZCg5MykNClJNU0UgPC0gZnVuY3Rpb24oeCwgdHJ1ZV94KSBzcXJ0KG1lYW4oKHggLSB0cnVlX3gpXjIpKQ0KYGBgDQoNCiMjIyBEYXRhIGV4cGxvcmF0aW9uICANCiAgDQoNCkFmdGVyIHJlYWRpbmcgaW4gdGhlIGRhdGEsIGxldCdzIHRha2UgYSBnbGltcHNlIGF0IHRoZSBkYXRhIHN0cnVjdHVyZSB3ZSdsbCBiZSB3b3JraW5nIHdpdGg6DQpgYGB7ciwgZWNobyA9IEZBTFNFfQ0KZGF0YSA8LSBmcmVhZCgiLi8uLi9EYXRhL1NhbGVzIFByZWRpY3Rpb24vdHJhaW5pbmcuY3N2Iiwgc3RyaW5nc0FzRmFjdG9ycyA9IEYpDQpnbGltcHNlKGRhdGEpDQpgYGANCg0K</div>
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIlNhbGVzIFByZWRpY3Rpb24gRXhlcmNpc2UiDQphdXRob3I6ICJUYW1hcyBLb25jeiINCmRhdGU6ICcyMDE4LTAzLTA0Jw0Kb3V0cHV0Og0KICBodG1sX2RvY3VtZW50Og0KICAgIGRmX3ByaW50OiBwYWdlZA0KICBodG1sX25vdGVib29rOg0KICAgIGRmX3ByaW50OiBwYWdlZA0KICBwZGZfZG9jdW1lbnQ6IGRlZmF1bHQNCi0tLQ0KDQpgYGB7ciBzZXR1cCwgbWVzc2FnZT1GQUxTRSwgaW5jbHVkZT1GQUxTRX0NCmxpYnJhcnkoZGF0YS50YWJsZSkNCmxpYnJhcnkoZHBseXIpDQpsaWJyYXJ5KGx1YnJpZGF0ZSkNCmxpYnJhcnkoZ2dwbG90MikNCmxpYnJhcnkoZ3JpZEV4dHJhKQ0KbGlicmFyeShzY2FsZXMpDQpsaWJyYXJ5KHJlc2hhcGUpDQoNCmxpYnJhcnkoY2FyZXQpDQpsaWJyYXJ5KGdsbW5ldCkNCg0KbGlicmFyeShrbml0cikNCmtuaXRyOjpvcHRzX2NodW5rJHNldCh3YXJuaW5nID0gRkFMU0UpDQprbml0cjo6b3B0c19jaHVuayRzZXQobWVzc2FnZSA9IEZBTFNFKQ0KDQp0aGVtZV9zZXQodGhlbWVfbWluaW1hbCgpKSAgICMgZ2xvYmFsbHkgc2V0IGdncGxvdCB0aGVtZQ0KDQpzZXQuc2VlZCg5MykNClJNU0UgPC0gZnVuY3Rpb24oeCwgdHJ1ZV94KSBzcXJ0KG1lYW4oKHggLSB0cnVlX3gpXjIpKQ0KYGBgDQoNCmBgYHtyLCBlY2hvPUZBTFNFfQ0KZnVuX2NvdW50X25hIDwtIGZ1bmN0aW9uKGR0KSB7DQogICMjY291bnRzIGFuZCByZXBvcnRzIHRoZSBtaXNzaW5nIG9ic2VydmF0aW9ucyBmb3IgZWFjaCBjb2x1bW4gaW4gYSBkYXRhLnRhYmxlIG9iamVjdA0KICBtaXNzaW5nX3ZhbHVlcyA8LSBhcy5kYXRhLnRhYmxlKHQoZHRbLCBsYXBwbHkoLlNELCBmdW5jdGlvbih4KSBzdW0oaXMubmEoeCkpKSwgLlNEY29scyA9IG5hbWVzKGR0KV0pLA0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGtlZXAucm93bmFtZXMgPSBUUlVFKQ0KICBzZXRuYW1lcyhtaXNzaW5nX3ZhbHVlcywgYygidmFyaWFibGUiLCAiTkEuQ291bnQiKSkNCiAgDQogIHJldHVybihtaXNzaW5nX3ZhbHVlc1tvcmRlcigtTkEuQ291bnQpXVtOQS5Db3VudD4wXSkNCn0NCmBgYA0KDQoNCiMjIyBEYXRhIGV4cGxvcmF0aW9uICANCiAgDQoNCkFmdGVyIHJlYWRpbmcgaW4gdGhlIGRhdGEsIGxldCdzIHRha2UgYSBnbGltcHNlIGF0IHRoZSBkYXRhIHN0cnVjdHVyZSB3ZSdsbCBiZSB3b3JraW5nIHdpdGg6DQpgYGB7ciwgZWNobyA9IEZBTFNFfQ0KZGF0YSA8LSBmcmVhZCgiLi8uLi9EYXRhL1NhbGVzIFByZWRpY3Rpb24vdHJhaW5pbmcuY3N2Iiwgc3RyaW5nc0FzRmFjdG9ycyA9IEYpDQpnbGltcHNlKGRhdGEpDQpgYGAgIA0KICANCk9uZSB0aGluZyB0byBub3RpY2UgaXMgdGhhdCB3ZSBoYXZlIGEgZmllbGQgY29udGFpbmluZyBmaWVsZHMsIGhvd2V2ZXIgUiB0cmVhdHMgaXQgYXMgYSBjaGFyYWN0ZXIgY29sdW1uIGJ5IGRlZmF1bHQuICAgDQpXZSdsbCBmaXggdGhhdCBpbiB0aGUgbmV4dCBzdGVwLCBidXQgYmVmb3JlIGxldCdzIHF1aWNrbHkgY2hlY2sgaWYgdGhlcmUgaXMgYW55IG9ic2VydmF0aW9uIHRoYXQgd2UgY291bGQgcmVtb3ZlIHJpZ2h0IGF3YXk6DQoNCmBgYHtyfQ0KZnVuX2NvdW50X25hKGRhdGEpDQpgYGANCg0KYGBge3J9DQpkYXRhIDwtIGRhdGEgJT4lDQogICAgICAgICAgZmlsdGVyKHF1YW50aXR5ID4gMCAmIHNhbGVzX2Ftb3VudCA+IDApICU+JSAjI3RoaXMgY291bGQgYmUgZXhwbG9yZWQgZnVydGVyLiBFWFBMQUlOIQ0KICAgICAgICAgIG11dGF0ZShwdXJjaGFzZV9kYXRlID0gYXMuRGF0ZShwdXJjaGFzZV9kYXRlLCAiJVktJW0tJWQiKSkgJT4lDQogICAgICAgICAgYXJyYW5nZShjb250YWN0X2lkLCBwdXJjaGFzZV9kYXRlKSAlPiUNCiAgICAgICAgICBzZWxlY3QoY29udGFjdF9pZCwgb3JkZXJfaWQsIHB1cmNoYXNlX2RhdGUsIHByb2R1Y3RfaWQsIHF1YW50aXR5LCBzYWxlc19hbW91bnQpDQpgYGANCg0K</div>
 
 
 

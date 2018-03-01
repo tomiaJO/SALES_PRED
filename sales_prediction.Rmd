@@ -32,6 +32,18 @@ set.seed(93)
 RMSE <- function(x, true_x) sqrt(mean((x - true_x)^2))
 ```
 
+```{r, echo=FALSE}
+fun_count_na <- function(dt) {
+  ##counts and reports the missing observations for each column in a data.table object
+  missing_values <- as.data.table(t(dt[, lapply(.SD, function(x) sum(is.na(x))), .SDcols = names(dt)]),
+                                  keep.rownames = TRUE)
+  setnames(missing_values, c("variable", "NA.Count"))
+  
+  return(missing_values[order(-NA.Count)][NA.Count>0])
+}
+```
+
+
 ### Data exploration  
   
 
@@ -39,5 +51,20 @@ After reading in the data, let's take a glimpse at the data structure we'll be w
 ```{r, echo = FALSE}
 data <- fread("./../Data/Sales Prediction/training.csv", stringsAsFactors = F)
 glimpse(data)
+```  
+  
+One thing to notice is that we have a field containing fields, however R treats it as a character column by default.   
+We'll fix that in the next step, but before let's quickly check if there is any observation that we could remove right away:
+
+```{r}
+fun_count_na(data)
+```
+
+```{r}
+data <- data %>%
+          filter(quantity > 0 & sales_amount > 0) %>% ##this could be explored furter. EXPLAIN!
+          mutate(purchase_date = as.Date(purchase_date, "%Y-%m-%d")) %>%
+          arrange(contact_id, purchase_date) %>%
+          select(contact_id, order_id, purchase_date, product_id, quantity, sales_amount)
 ```
 
