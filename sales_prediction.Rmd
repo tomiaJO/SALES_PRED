@@ -1,0 +1,43 @@
+---
+title: "Sales Prediction Exercise"
+author: "Tamas Koncz"
+date: '2018-03-04'
+output:
+  html_document:
+    df_print: paged
+  html_notebook:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, message=FALSE, include=FALSE}
+library(data.table)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(gridExtra)
+library(scales)
+library(reshape)
+
+library(caret)
+library(glmnet)
+
+library(knitr)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+
+theme_set(theme_minimal())   # globally set ggplot theme
+
+set.seed(93)
+RMSE <- function(x, true_x) sqrt(mean((x - true_x)^2))
+```
+
+### Data exploration  
+  
+
+After reading in the data, let's take a glimpse at the data structure we'll be working with:
+```{r, echo = FALSE}
+data <- fread("./../Data/Sales Prediction/training.csv", stringsAsFactors = F)
+glimpse(data)
+```
+

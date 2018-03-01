@@ -105,10 +105,11 @@ data %>%
   mutate(cum_sales = cumsum(sales_amount)) %>%
   head(15)
 
-fun_two_week_window <- function(df, iID, iDate, iWindow) {
+fun_prev_sales <- function(df, iID, iDate, iWindow) {
   df %>%
     filter(contact_id == iID) %>%
-    filter(purchase_date >= iDate - iWindow & purchase_date < iDate)
+    filter(purchase_date >= iDate - iWindow & purchase_date < iDate) %>%
+    summarize(sum(sales_amount))
 }
 
-fun_two_week_window(data, 884, as.Date("2013-05-14", "%Y-%m-%d"), 200)
+fun_prev_sales(data, 884, as.Date("2013-05-14", "%Y-%m-%d"), 100)
