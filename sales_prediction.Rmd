@@ -107,8 +107,131 @@ data <- data %>%
   
 As standard practice, I'll continue by visually exploring what's in the data, that might be useful for sales prediction.  
   
-My starting hypothesis is that one of the most important features to understand is whether we are working returning customers - which materializes as having more than one purchase_date per contact_id (the other is the seasonality effect - more on that later).
+My starting hypothesis is that one of the most important features to understand is whether we are working returning customers - which materializes as having more than one purchase_date per contact_id (the other is the seasonality effect - more on that later).  
+  
+The below table gives us a brief look into customers who are generating the most number of transactions:
+```{r, echo = FALSE}
+per_contact_avgs <- data %>%
+                      group_by(contact_id) %>%
+                      summarize(total_line_items = n(),
+                                transaction_count = n_distinct(order_id),
+                                unique_products = n_distinct(product_id),
+                                avg_quantity = mean(quantity),
+                                median_quantity = median(quantity),
+                                avg_sales_amount = mean(sales_amount),
+                                median_sales_amount = median(sales_amount),
+                                total_sales_amount = sum(sales_amount))
+per_contact_avgs %>%
+  arrange(desc(transaction_count)) %>%
+  head(10)
+```
+  
+Below is a visualization of the distribution of transactions among customers, broken into two groups, one having more than 25 transactions, and one having less.  
 ```{r}
+##visualize
+per_contact_avgs %>%
+  ggplot() + 
+  geom_histogram(aes(x= transaction_count)) +
+  facet_wrap(~transaction_count < 25, scales = "free") 
+```
 
+What do we learn from this?  
+    1. First, most customers only buy once. This is important for our modeling, as we won't know anything about them (priori to their first purchase) when we try to forecast their sales. Hence, all we'll be able to rely on is some generalizations made based on when they make their purchase.  
+    2. Any way we slice the customers, transaction counts will be heavily skewed to the left - even more than for lognormal distributions.
+    3. A very important thing that we _don't_ learn is how much sales these different groups generate.  
+    
+Maybe not suprisingly, total sales per contract_id do closely resemble a lognormal distribution:
+```{r, echo=FALSE}
+p1 <- per_contact_avgs %>%
+  ggplot() + 
+  geom_histogram(aes(x= log(total_sales_amount))) +
+  facet_wrap(~transaction_count < 2, scales = "free_y") 
+## add avg. spending per customer
+## tidy out visual
+
+#make this one chart with overlapping dist-s:
+p2 <- per_contact_avgs %>%
+  ggplot() + 
+  geom_histogram(aes(x= log(avg_sales_amount))) +
+  facet_wrap(~transaction_count < 2, scales = "free_y")
+
+grid.arrange(p1, p2, ncol = 1)
+```
+## bit further text on this is needed... specially the avg. sales part
+
+
+The second important factor to understand is how seasonality (basically time of purchase) is related to sales amounts.
+
+```{r, echo = FALSE}
+##TODO: monthly volumes
+##visualize
+ordered_year_month <- data %>%
+                        mutate(purchase_year = year(purchase_date)) %>%
+                        mutate(purchase_month = month(purchase_date)) %>%
+                        distinct(purchase_year, purchase_month) %>%
+                        mutate(purchase_year_month = paste(as.character(purchase_year),
+                                                           as.character(purchase_month), sep = "-")) %>%
+                        arrange(purchase_year, purchase_month) %>%
+                        select(purchase_year_month)
+
+data <- data %>%
+  mutate(purchase_year = year(purchase_date)) %>%
+  mutate(purchase_month = month(purchase_date)) %>%
+  mutate(purchase_year_month = paste(as.character(purchase_year),
+                                     as.character(purchase_month), sep = "-")) %>%
+  mutate(purchase_year_month = factor(purchase_year_month, 
+                                      levels = ordered_year_month[["purchase_year_month"]])) 
+
+month_breaks <- ordered_year_month$purchase_year_month[seq(0, 24, 3)]
+
+p1 <- data %>%
+  group_by(purchase_year_month) %>%
+  summarize(sales = sum(sales_amount)) %>%
+  ggplot(aes(x= purchase_year_month)) + 
+    geom_point(aes(y = sales)) +
+    geom_line(aes(y = sales), group=1) +
+    scale_x_discrete(breaks=month_breaks)  
+
+p2 <- data %>%
+  group_by(purchase_year_month) %>%
+  summarize(transaction_count = n_distinct(order_id)) %>%
+  ggplot(aes(x= purchase_year_month)) + 
+    geom_point(aes(y = transaction_count), color = "red") +
+    geom_line(aes(y = transaction_count), color = "red", group=1)
+
+p3 <- data %>%
+  group_by(purchase_year_month, order_id) %>%
+  summarize(sales_amount = sum(sales_amount)) %>%
+  group_by(purchase_year_month) %>%
+  summarize(avg_sales_amount = mean(sales_amount)) %>%
+  ggplot(aes(x= purchase_year_month)) + 
+    geom_point(aes(y = avg_sales_amount), color = "blue") +
+    geom_line(aes(y = avg_sales_amount), color = "blue", group=1)
+
+grid.arrange(p1, p2, p3, ncol = 1)
+
+##todo tidy-up, explain
+```
+
+```{r}
+data %>%
+  arrange(contact_id, purchase_date) %>%
+  head(20)
+
+
+#TODO: break this out by purchase count 0 or 1+ by contact_id
+data %>%
+  group_by(purchase_year, purchase_month, contact_id, order_id) %>%
+  summarize(sales_amount = sum(sales_amount)) %>%
+  group_by(purchase_year, purchase_month, contact_id) %>%
+  summarize(avg_sales_amount = mean(sales_amount)) %>%
+  group_by(purchase_year, purchase_month) %>%
+  summarize(avg_sales_amount = mean(avg_sales_amount)) %>%
+  ggplot(aes(x = as.factor(purchase_month), y = avg_sales_amount)) +
+    geom_bar(stat="identity") + 
+    scale_x_discrete(breaks=c(1:12)) +
+    facet_grid(~purchase_year)
+  
+  
 ```
 
