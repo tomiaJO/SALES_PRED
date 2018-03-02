@@ -3,11 +3,16 @@ title: "Sales Prediction Exercise"
 author: "Tamas Koncz"
 date: '2018-03-04'
 output:
-  html_document:
-    df_print: paged
   html_notebook:
     df_print: paged
-  pdf_document: default
+    toc: true
+    number_sections: true
+    theme: united
+  html_document:
+    df_print: paged
+    toc: true
+    number_sections: true
+    theme: united
 ---
 
 ```{r setup, message=FALSE, include=FALSE}
@@ -43,11 +48,22 @@ fun_count_na <- function(dt) {
 }
 ```
 
-##WRITE "PREFACE"
+# Purpose definition
 
- - goal of the exercise
- - approach with RMD
- 
+The goal of this exercise is to predict sales for the coming year for different customers (groups of customers). I'll use standard prediction techniques and practices to create predictive models, while explaining the decision I've made along the code as well.  
+
+The output will be available in an .Rmd and .html files.  
+My documentation approach is the following: the .html output will show only limited amount of code, only snippets that are helpful for understanding the logic applied (others are "hidden" by the 'echo = FALSE' prefix for code chunks).  
+For the full code base, please refer to the .Rmd file.  
+  
+The analysis is built of the following parts:  
+    1. Data review & cleaning
+    2. Exploratory data analysis
+    3. Featuring engineering
+    4. Model building and 
+
+### 1. Data review & cleaning  
+
 After reading in the data, let's take a glimpse at the data structure we'll be working with:
 ```{r, echo = FALSE}
 data <- fread("./../Data/Sales Prediction/training.csv", stringsAsFactors = F)
@@ -97,7 +113,7 @@ Right now we can simply and assume they actually represent wrong data - so by ta
 Applying the fixes before we continue:  
 ```{r}
 data <- data %>%
-          filter(quantity > 0 & sales_amount > 0) %>% 
+          filter(sales_amount > 0) %>% 
           mutate(purchase_date = as.Date(purchase_date, "%Y-%m-%d")) %>%
           arrange(contact_id, purchase_date) %>%
           select(contact_id, order_id, purchase_date, product_id, quantity, sales_amount)
@@ -163,8 +179,6 @@ grid.arrange(p1, p2, ncol = 1)
 The second important factor to understand is how seasonality (basically time of purchase) is related to sales amounts.
 
 ```{r, echo = FALSE}
-##TODO: monthly volumes
-##visualize
 ordered_year_month <- data %>%
                         mutate(purchase_year = year(purchase_date)) %>%
                         mutate(purchase_month = month(purchase_date)) %>%
@@ -182,31 +196,43 @@ data <- data %>%
   mutate(purchase_year_month = factor(purchase_year_month, 
                                       levels = ordered_year_month[["purchase_year_month"]])) 
 
+```
+
+```{r}
+fun_plot_trend <- function(df1, x_var, y_var, x_breaks) {
+  
+  p <- ggplot(data = df1, aes_string(x= x_var)) + 
+    geom_point(aes_string(y = y_var)) +
+    geom_line(aes_string(y = y_var), group=1) +
+    scale_x_discrete(breaks = x_breaks)  
+    
+  return(p)
+}
+```
+
+```{r, echo = FALSE}
 month_breaks <- ordered_year_month$purchase_year_month[seq(0, 24, 3)]
 
 p1 <- data %>%
   group_by(purchase_year_month) %>%
   summarize(sales = sum(sales_amount)) %>%
-  ggplot(aes(x= purchase_year_month)) + 
-    geom_point(aes(y = sales)) +
-    geom_line(aes(y = sales), group=1) +
-    scale_x_discrete(breaks=month_breaks)  
-
+  fun_plot_trend(x_var = "purchase_year_month", 
+                 y_var = "sales", x_breaks = month_breaks)
+  
+  
 p2 <- data %>%
   group_by(purchase_year_month) %>%
   summarize(transaction_count = n_distinct(order_id)) %>%
-  ggplot(aes(x= purchase_year_month)) + 
-    geom_point(aes(y = transaction_count), color = "red") +
-    geom_line(aes(y = transaction_count), color = "red", group=1)
+  fun_plot_trend(x_var = "purchase_year_month", 
+                 y_var = "transaction_count", x_breaks = month_breaks)
 
 p3 <- data %>%
   group_by(purchase_year_month, order_id) %>%
   summarize(sales_amount = sum(sales_amount)) %>%
   group_by(purchase_year_month) %>%
   summarize(avg_sales_amount = mean(sales_amount)) %>%
-  ggplot(aes(x= purchase_year_month)) + 
-    geom_point(aes(y = avg_sales_amount), color = "blue") +
-    geom_line(aes(y = avg_sales_amount), color = "blue", group=1)
+  fun_plot_trend(x_var = "purchase_year_month", 
+                 y_var = "avg_sales_amount", x_breaks = month_breaks)
 
 grid.arrange(p1, p2, p3, ncol = 1)
 
@@ -217,8 +243,8 @@ grid.arrange(p1, p2, p3, ncol = 1)
 data %>%
   arrange(contact_id, purchase_date) %>%
   head(20)
-
-
+```
+```{r}
 #TODO: break this out by purchase count 0 or 1+ by contact_id
 data %>%
   group_by(purchase_year, purchase_month, contact_id, order_id) %>%
@@ -229,9 +255,7 @@ data %>%
   summarize(avg_sales_amount = mean(avg_sales_amount)) %>%
   ggplot(aes(x = as.factor(purchase_month), y = avg_sales_amount)) +
     geom_bar(stat="identity") + 
-    scale_x_discrete(breaks=c(1:12)) +
+    scale_x_discrete(breaks = c(1:12)) +
     facet_grid(~purchase_year)
-  
-  
 ```
 
