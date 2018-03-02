@@ -128,8 +128,12 @@ $(document).ready(function () {
 </div>
 
 
-<div id="data-exploration" class="section level3">
-<h3>Data exploration</h3>
+<div id="write-preface" class="section level2">
+<h2>WRITE “PREFACE”</h2>
+<ul>
+<li>goal of the exercise</li>
+<li>approach with RMD</li>
+</ul>
 <p>After reading in the data, let’s take a glimpse at the data structure we’ll be working with:</p>
 <pre><code>## Observations: 544,387
 ## Variables: 6
@@ -139,6 +143,52 @@ $(document).ready(function () {
 ## $ product_id    &lt;int&gt; 3308032, 37220513, 10259603, 3308032, 3308032, 2...
 ## $ quantity      &lt;int&gt; 1, 2, 1, 1, 1, 2, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, ...
 ## $ sales_amount  &lt;dbl&gt; 18.71, 83.50, 19.95, 18.71, 18.71, 39.90, 45.56,...</code></pre>
+<p>One thing to notice is that we have a field containing fields, however R treats it as a character column by default.<br />
+We’ll fix that in the next step, but before let’s quickly check if there is any observation that we could remove right away:</p>
+<div data-pagedtable="false">
+<script data-pagedtable-source type="application/json">
+{"columns":[{"label":["variable"],"name":[1],"type":["chr"],"align":["left"]},{"label":["NA.Count"],"name":[2],"type":["int"],"align":["right"]}],"data":[{"1":"order_id","2":"0"},{"1":"contact_id","2":"0"},{"1":"purchase_date","2":"0"},{"1":"product_id","2":"0"},{"1":"quantity","2":"0"},{"1":"sales_amount","2":"0"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+<p>No NAs, that’s good news. Before deciding whether the dataset is complete or not, let’s make sure all the sales &amp; quantity values make sense, by checking how many 0-s we encounter.</p>
+<p>First, for quantities:</p>
+<pre class="r"><code>data %&gt;%
+  filter(quantity == 0) %&gt;%
+  summarize(count = n(),
+            sum_sales_amount = sum(sales_amount))</code></pre>
+<div data-pagedtable="false">
+<script data-pagedtable-source type="application/json">
+{"columns":[{"label":["count"],"name":[1],"type":["int"],"align":["right"]},{"label":["sum_sales_amount"],"name":[2],"type":["dbl"],"align":["right"]}],"data":[{"1":"20","2":"0"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+<p>This looks very limited. Without further context on the data, I’ll just assume they are recording errors, and exlcude them for the dataset.</p>
+<pre class="r"><code>data %&gt;%
+  filter(quantity != 0) %&gt;%
+  filter(sales_amount == 0) %&gt;%
+  summarize(count = n(),
+            sum_quantity = sum(quantity))</code></pre>
+<div data-pagedtable="false">
+<script data-pagedtable-source type="application/json">
+{"columns":[{"label":["count"],"name":[1],"type":["int"],"align":["right"]},{"label":["sum_quantity"],"name":[2],"type":["int"],"align":["right"]}],"data":[{"1":"6947","2":"7182"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+<p>We are encountering many (6947 in total) observations for which sales_amount is 0. Interestingly, sometimes even the record quantity is larger than 1 for these.<br />
+Although they are marginal compared to the number of all observations (500K+), a decision needs to be still made how to handle them, as they are likely misleading for any model in their current format.</p>
+<p>There might be a reason behind having 0 values (one I can think of is they are being part of some kind of promotion), and this reason could actually be indicative of future sales (e.g. the promotion is for frequent shoppers etc.).<br />
+In this case, features should be created out of these items to help enhance the model’s prediction.<br />
+On the other hand, they might just be simple data issues. Deleted items still showing up as line items, incorrect prices (hence sales_amount), or anything similar.<br />
+Right now we can simply and assume they actually represent wrong data - so by taking the easy path, I simply exclude them from further modeling efforts.</p>
+<p>Applying the fixes before we continue:</p>
+<pre class="r"><code>data &lt;- data %&gt;%
+          filter(quantity &gt; 0 &amp; sales_amount &gt; 0) %&gt;% 
+          mutate(purchase_date = as.Date(purchase_date, &quot;%Y-%m-%d&quot;)) %&gt;%
+          arrange(contact_id, purchase_date) %&gt;%
+          select(contact_id, order_id, purchase_date, product_id, quantity, sales_amount)</code></pre>
+<div id="data-exploration" class="section level3">
+<h3>Data exploration</h3>
+<p>As standard practice, I’ll continue by visually exploring what’s in the data, that might be useful for sales prediction.</p>
+<p>My starting hypothesis is that one of the most important features to understand is whether we are working returning customers - which materializes as having more than one purchase_date per contact_id (the other is the seasonality effect - more on that later).</p>
+</div>
 </div>
 
 

@@ -183,8 +183,12 @@ $(document).ready(function () {
 <!-- rnb-chunk-begin -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
-<div id="data-exploration" class="section level3">
-<h3>Data exploration</h3>
+<div id="write-preface" class="section level2">
+<h2>WRITE “PREFACE”</h2>
+<ul>
+<li>goal of the exercise</li>
+<li>approach with RMD</li>
+</ul>
 <p>After reading in the data, let’s take a glimpse at the data structure we’ll be working with:</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
@@ -204,9 +208,6 @@ $ sales_amount  &lt;dbl&gt; 18.71, 83.50, 19.95, 18.71, 18.71, 39.90, 45.56, 159
 We’ll fix that in the next step, but before let’s quickly check if there is any observation that we could remove right away:</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZnVuX2NvdW50X25hKGRhdGEpXG5gYGAifQ== -->
-<pre class="r"><code>fun_count_na(data)</code></pre>
-<!-- rnb-source-end -->
 <!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEudGFibGUiLCJkYXRhLmZyYW1lIl0sIm5jb2wiOjIsIm5yb3ciOjZ9LCJyZGYiOiJINHNJQUFBQUFBQUFCblZTc1c3RElCQWwySEVjcTJrajlUdmlvVVAzcXAwN2RNcG1YV3pxb0JKd0QyamFyZC9kSVM2MlFYRXNCUW00T3g3M0hrKzh2V3dmc20xR0NLRWtpaU5DSXhmRzFDMHpFcE5sdDM4VEV0MzNBRUxXYmliK0lGVllNU3g0NWZPc1ZOSkFhYzZWVldPeDNJTm1SUVdHQlZpRHFySmpXUHBwUVJwdWZueCtvMEV3WGNCQldXbTZOajNwMVhHaGRpN2h3TFJYU2dQQkZ5Q0huUWdTMHRlbi9IbG9mbm01RktERDVWRE1uSGJJMzlIMW5jQ1hxSTU1NE90RTBsKzN0RzM3NTdiVEJMeFFqZUZLT2lqdHpFd25MRFBzcVByQ01NYUhkMVoyTk5XbTNGdjVzWG1jUUsvRkt4OG5vNWdPc21qcktWSlBrVEJaY3hrTW1qTkVoU0VSc0dNaVBNTzlWa01kZ0lzam9PU3k5dW10YzZRM0pHK1FPM3U5ZzY2cWM2TU1pUE5YRWFIU1cwVk8vejFCNnBDSkFnQUEifQ== -->
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
@@ -216,21 +217,64 @@ We’ll fix that in the next step, but before let’s quickly check if there is 
 <!-- rnb-frame-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
+<p>No NAs, that’s good news. Before deciding whether the dataset is complete or not, let’s make sure all the sales &amp; quantity values make sense, by checking how many 0-s we encounter.</p>
+<p>First, for quantities:</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZGF0YSA8LSBkYXRhICU+JVxuICAgICAgICAgIGZpbHRlcihxdWFudGl0eSA+IDAgJiBzYWxlc19hbW91bnQgPiAwKSAlPiUgIyN0aGlzIGNvdWxkIGJlIGV4cGxvcmVkIGZ1cnRlci4gRVhQTEFJTiFcbiAgICAgICAgICBtdXRhdGUocHVyY2hhc2VfZGF0ZSA9IGFzLkRhdGUocHVyY2hhc2VfZGF0ZSwgXCIlWS0lbS0lZFwiKSkgJT4lXG4gICAgICAgICAgYXJyYW5nZShjb250YWN0X2lkLCBwdXJjaGFzZV9kYXRlKSAlPiVcbiAgICAgICAgICBzZWxlY3QoY29udGFjdF9pZCwgb3JkZXJfaWQsIHB1cmNoYXNlX2RhdGUsIHByb2R1Y3RfaWQsIHF1YW50aXR5LCBzYWxlc19hbW91bnQpXG5gYGAifQ== -->
+<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6MiwibnJvdyI6MX0sInJkZiI6Ikg0c0lBQUFBQUFBQUJuMVMyMDdETUF6MTJ0MWFzVEVFNGkvV0IvZ0Z2b0NudlZXbXpiYUl6Q2xPd3VEbmdiUkxSbGNKS3FVOVB2Rng3Wk04UDIwZThrME9BQW1rNHhTUzFNTng0bDhqR0VQV2ZqOEEwdHN1QVdEUmJRRGMrYlVNT0R3WG9nbmhRUmdQVnAwd2tKVjJaRU93TXU1UUdsVENsSGpvK01zS040VWtLNWhRRlVhb0xZdXRKKy9EK2dxcnJUNE5ncm5tV25BcDZ4RG5sU2FMbGYxbEZvM2phbzlHbERWYUVkTWExclhycDgzZkhKS1Y5alBFVi85MG1iRStGbkhXYU01b2FFYWwwRVF6SXBuN0hyRFlzdGVlaHJtUXpIUmpwU1l2U2xycnM0RTRiV2czb0ViY0Z1MGRTWC96MmxIYlpMMnU5bzVlMTQrRDFMOXdiNkF6VGs2ZEp0L2hGMWxzcVJidkFVNEY3U1JGZ3llQ1dYTU1GTDRJRllmMHRobmN4Y1RaRVpta0grd1VMcjIxbmJORncvSjhiWExQbXNKcWkrcjNuRlZrd3MzNEFSN1ZZUVBWQWdBQSJ9 -->
+<div data-pagedtable="false">
+<script data-pagedtable-source type="application/json">
+{"columns":[{"label":["count"],"name":[1],"type":["int"],"align":["right"]},{"label":["sum_sales_amount"],"name":[2],"type":["dbl"],"align":["right"]}],"data":[{"1":"20","2":"0"}],"options":{"columns":{"min":{},"max":[10],"total":[2]},"rows":{"min":[10],"max":[10],"total":[1]},"pages":{}}}
+  </script>
+</div>
+<!-- rnb-frame-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>This looks very limited. Without further context on the data, I’ll just assume they are recording errors, and exlcude them for the dataset.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6MiwibnJvdyI6MX0sInJkZiI6Ikg0c0lBQUFBQUFBQUJuVlN5MDdETUJEY0puMGxvcVVJaVF2Y09EZUhmZ05md0ttM2FFbmMxc0pkaDdWTjRlY0JKN1g3aU1UQnlleDR4NW1kK1BWbHZjclhPUUFra0E1VFNGSVBoNGwvREdBSVdmditBa2p2dXdhQVdiY0JqODluL0RUdkNVYUVlMkU4V0hTaVFGYmFrUTNGalhINzhzTWhXV20vZStxN1FwSVZUS2dLSTlTR3hjYVREMkg5aE5XZVBBNkNxZVphY0NuclVPZVZKb3VWUFRPenhuRzFReVBLR3EySWJRM3IybDIyVFUrT29rdFV3cFM0NzV4ZnU4eFlING80WndpaVhkZEJWQXBORENLU3VmZUF4WWE5OWpqTWxXU2lHeXMxZVZIU1JwNzF4R2xEMng0MTRQYlE0QUI2bTdlT1dwUDFzdG81ZWwrdWVxMy80WXVCVGpnNU9rMSt3eWV5YUtrV253R09CVzBseFlCSGdsbHpMQlMrQ1JXSDlMRVozTWJHeVFHWnBCL3NXTTU5dEYyeVJjUHlkR1Z5ejVyQ2FvdnEvSjlWWk1MTitBT3N5MDBLelFJQUFBPT0ifQ== -->
+<div data-pagedtable="false">
+<script data-pagedtable-source type="application/json">
+{"columns":[{"label":["count"],"name":[1],"type":["int"],"align":["right"]},{"label":["sum_quantity"],"name":[2],"type":["int"],"align":["right"]}],"data":[{"1":"6947","2":"7182"}],"options":{"columns":{"min":{},"max":[10],"total":[2]},"rows":{"min":[10],"max":[10],"total":[1]},"pages":{}}}
+  </script>
+</div>
+<!-- rnb-frame-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>We are encountering many (6947 in total) observations for which sales_amount is 0. Interestingly, sometimes even the record quantity is larger than 1 for these.<br />
+Although they are marginal compared to the number of all observations (500K+), a decision needs to be still made how to handle them, as they are likely misleading for any model in their current format.</p>
+<!-- rnb-text-end -->
+<!-- rnb-text-begin -->
+<p>There might be a reason behind having 0 values (one I can think of is they are being part of some kind of promotion), and this reason could actually be indicative of future sales (e.g. the promotion is for frequent shoppers etc.).<br />
+In this case, features should be created out of these items to help enhance the model’s prediction.<br />
+On the other hand, they might just be simple data issues. Deleted items still showing up as line items, incorrect prices (hence sales_amount), or anything similar.<br />
+Right now we can simply and assume they actually represent wrong data - so by taking the easy path, I simply exclude them from further modeling efforts.</p>
+<p>Applying the fixes before we continue:</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZGF0YSA8LSBkYXRhICU+JVxuICAgICAgICAgIGZpbHRlcihxdWFudGl0eSA+IDAgJiBzYWxlc19hbW91bnQgPiAwKSAlPiUgXG4gICAgICAgICAgbXV0YXRlKHB1cmNoYXNlX2RhdGUgPSBhcy5EYXRlKHB1cmNoYXNlX2RhdGUsIFwiJVktJW0tJWRcIikpICU+JVxuICAgICAgICAgIGFycmFuZ2UoY29udGFjdF9pZCwgcHVyY2hhc2VfZGF0ZSkgJT4lXG4gICAgICAgICAgc2VsZWN0KGNvbnRhY3RfaWQsIG9yZGVyX2lkLCBwdXJjaGFzZV9kYXRlLCBwcm9kdWN0X2lkLCBxdWFudGl0eSwgc2FsZXNfYW1vdW50KVxuYGBgIn0= -->
 <pre class="r"><code>data &lt;- data %&gt;%
-          filter(quantity &gt; 0 &amp; sales_amount &gt; 0) %&gt;% ##this could be explored furter. EXPLAIN!
+          filter(quantity &gt; 0 &amp; sales_amount &gt; 0) %&gt;% 
           mutate(purchase_date = as.Date(purchase_date, &quot;%Y-%m-%d&quot;)) %&gt;%
           arrange(contact_id, purchase_date) %&gt;%
           select(contact_id, order_id, purchase_date, product_id, quantity, sales_amount)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
+<div id="data-exploration" class="section level3">
+<h3>Data exploration</h3>
+<p>As standard practice, I’ll continue by visually exploring what’s in the data, that might be useful for sales prediction.</p>
+<p>My starting hypothesis is that one of the most important features to understand is whether we are working returning customers - which materializes as having more than one purchase_date per contact_id (the other is the seasonality effect - more on that later).</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 </div>
+</div>
 
-<div id="rmd-source-code">LS0tDQp0aXRsZTogIlNhbGVzIFByZWRpY3Rpb24gRXhlcmNpc2UiDQphdXRob3I6ICJUYW1hcyBLb25jeiINCmRhdGU6ICcyMDE4LTAzLTA0Jw0Kb3V0cHV0Og0KICBodG1sX2RvY3VtZW50Og0KICAgIGRmX3ByaW50OiBwYWdlZA0KICBodG1sX25vdGVib29rOg0KICAgIGRmX3ByaW50OiBwYWdlZA0KICBwZGZfZG9jdW1lbnQ6IGRlZmF1bHQNCi0tLQ0KDQpgYGB7ciBzZXR1cCwgbWVzc2FnZT1GQUxTRSwgaW5jbHVkZT1GQUxTRX0NCmxpYnJhcnkoZGF0YS50YWJsZSkNCmxpYnJhcnkoZHBseXIpDQpsaWJyYXJ5KGx1YnJpZGF0ZSkNCmxpYnJhcnkoZ2dwbG90MikNCmxpYnJhcnkoZ3JpZEV4dHJhKQ0KbGlicmFyeShzY2FsZXMpDQpsaWJyYXJ5KHJlc2hhcGUpDQoNCmxpYnJhcnkoY2FyZXQpDQpsaWJyYXJ5KGdsbW5ldCkNCg0KbGlicmFyeShrbml0cikNCmtuaXRyOjpvcHRzX2NodW5rJHNldCh3YXJuaW5nID0gRkFMU0UpDQprbml0cjo6b3B0c19jaHVuayRzZXQobWVzc2FnZSA9IEZBTFNFKQ0KDQp0aGVtZV9zZXQodGhlbWVfbWluaW1hbCgpKSAgICMgZ2xvYmFsbHkgc2V0IGdncGxvdCB0aGVtZQ0KDQpzZXQuc2VlZCg5MykNClJNU0UgPC0gZnVuY3Rpb24oeCwgdHJ1ZV94KSBzcXJ0KG1lYW4oKHggLSB0cnVlX3gpXjIpKQ0KYGBgDQoNCmBgYHtyLCBlY2hvPUZBTFNFfQ0KZnVuX2NvdW50X25hIDwtIGZ1bmN0aW9uKGR0KSB7DQogICMjY291bnRzIGFuZCByZXBvcnRzIHRoZSBtaXNzaW5nIG9ic2VydmF0aW9ucyBmb3IgZWFjaCBjb2x1bW4gaW4gYSBkYXRhLnRhYmxlIG9iamVjdA0KICBtaXNzaW5nX3ZhbHVlcyA8LSBhcy5kYXRhLnRhYmxlKHQoZHRbLCBsYXBwbHkoLlNELCBmdW5jdGlvbih4KSBzdW0oaXMubmEoeCkpKSwgLlNEY29scyA9IG5hbWVzKGR0KV0pLA0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGtlZXAucm93bmFtZXMgPSBUUlVFKQ0KICBzZXRuYW1lcyhtaXNzaW5nX3ZhbHVlcywgYygidmFyaWFibGUiLCAiTkEuQ291bnQiKSkNCiAgDQogIHJldHVybihtaXNzaW5nX3ZhbHVlc1tvcmRlcigtTkEuQ291bnQpXVtOQS5Db3VudD4wXSkNCn0NCmBgYA0KDQoNCiMjIyBEYXRhIGV4cGxvcmF0aW9uICANCiAgDQoNCkFmdGVyIHJlYWRpbmcgaW4gdGhlIGRhdGEsIGxldCdzIHRha2UgYSBnbGltcHNlIGF0IHRoZSBkYXRhIHN0cnVjdHVyZSB3ZSdsbCBiZSB3b3JraW5nIHdpdGg6DQpgYGB7ciwgZWNobyA9IEZBTFNFfQ0KZGF0YSA8LSBmcmVhZCgiLi8uLi9EYXRhL1NhbGVzIFByZWRpY3Rpb24vdHJhaW5pbmcuY3N2Iiwgc3RyaW5nc0FzRmFjdG9ycyA9IEYpDQpnbGltcHNlKGRhdGEpDQpgYGAgIA0KICANCk9uZSB0aGluZyB0byBub3RpY2UgaXMgdGhhdCB3ZSBoYXZlIGEgZmllbGQgY29udGFpbmluZyBmaWVsZHMsIGhvd2V2ZXIgUiB0cmVhdHMgaXQgYXMgYSBjaGFyYWN0ZXIgY29sdW1uIGJ5IGRlZmF1bHQuICAgDQpXZSdsbCBmaXggdGhhdCBpbiB0aGUgbmV4dCBzdGVwLCBidXQgYmVmb3JlIGxldCdzIHF1aWNrbHkgY2hlY2sgaWYgdGhlcmUgaXMgYW55IG9ic2VydmF0aW9uIHRoYXQgd2UgY291bGQgcmVtb3ZlIHJpZ2h0IGF3YXk6DQoNCmBgYHtyfQ0KZnVuX2NvdW50X25hKGRhdGEpDQpgYGANCg0KYGBge3J9DQpkYXRhIDwtIGRhdGEgJT4lDQogICAgICAgICAgZmlsdGVyKHF1YW50aXR5ID4gMCAmIHNhbGVzX2Ftb3VudCA+IDApICU+JSAjI3RoaXMgY291bGQgYmUgZXhwbG9yZWQgZnVydGVyLiBFWFBMQUlOIQ0KICAgICAgICAgIG11dGF0ZShwdXJjaGFzZV9kYXRlID0gYXMuRGF0ZShwdXJjaGFzZV9kYXRlLCAiJVktJW0tJWQiKSkgJT4lDQogICAgICAgICAgYXJyYW5nZShjb250YWN0X2lkLCBwdXJjaGFzZV9kYXRlKSAlPiUNCiAgICAgICAgICBzZWxlY3QoY29udGFjdF9pZCwgb3JkZXJfaWQsIHB1cmNoYXNlX2RhdGUsIHByb2R1Y3RfaWQsIHF1YW50aXR5LCBzYWxlc19hbW91bnQpDQpgYGANCg0K</div>
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIlNhbGVzIFByZWRpY3Rpb24gRXhlcmNpc2UiDQphdXRob3I6ICJUYW1hcyBLb25jeiINCmRhdGU6ICcyMDE4LTAzLTA0Jw0Kb3V0cHV0Og0KICBodG1sX2RvY3VtZW50Og0KICAgIGRmX3ByaW50OiBwYWdlZA0KICBodG1sX25vdGVib29rOg0KICAgIGRmX3ByaW50OiBwYWdlZA0KICBwZGZfZG9jdW1lbnQ6IGRlZmF1bHQNCi0tLQ0KDQpgYGB7ciBzZXR1cCwgbWVzc2FnZT1GQUxTRSwgaW5jbHVkZT1GQUxTRX0NCmxpYnJhcnkoZGF0YS50YWJsZSkNCmxpYnJhcnkoZHBseXIpDQpsaWJyYXJ5KGx1YnJpZGF0ZSkNCmxpYnJhcnkoZ2dwbG90MikNCmxpYnJhcnkoZ3JpZEV4dHJhKQ0KbGlicmFyeShzY2FsZXMpDQpsaWJyYXJ5KHJlc2hhcGUpDQoNCmxpYnJhcnkoY2FyZXQpDQpsaWJyYXJ5KGdsbW5ldCkNCg0KbGlicmFyeShrbml0cikNCmtuaXRyOjpvcHRzX2NodW5rJHNldCh3YXJuaW5nID0gRkFMU0UpDQprbml0cjo6b3B0c19jaHVuayRzZXQobWVzc2FnZSA9IEZBTFNFKQ0KDQp0aGVtZV9zZXQodGhlbWVfbWluaW1hbCgpKSAgICMgZ2xvYmFsbHkgc2V0IGdncGxvdCB0aGVtZQ0KDQpzZXQuc2VlZCg5MykNClJNU0UgPC0gZnVuY3Rpb24oeCwgdHJ1ZV94KSBzcXJ0KG1lYW4oKHggLSB0cnVlX3gpXjIpKQ0KYGBgDQoNCmBgYHtyLCBlY2hvPUZBTFNFfQ0KZnVuX2NvdW50X25hIDwtIGZ1bmN0aW9uKGR0KSB7DQogICMjY291bnRzIGFuZCByZXBvcnRzIHRoZSBtaXNzaW5nIG9ic2VydmF0aW9ucyBmb3IgZWFjaCBjb2x1bW4gaW4gYSBkYXRhLnRhYmxlIG9iamVjdA0KICBtaXNzaW5nX3ZhbHVlcyA8LSBhcy5kYXRhLnRhYmxlKHQoZHRbLCBsYXBwbHkoLlNELCBmdW5jdGlvbih4KSBzdW0oaXMubmEoeCkpKSwgLlNEY29scyA9IG5hbWVzKGR0KV0pLA0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGtlZXAucm93bmFtZXMgPSBUUlVFKQ0KICBzZXRuYW1lcyhtaXNzaW5nX3ZhbHVlcywgYygidmFyaWFibGUiLCAiTkEuQ291bnQiKSkNCiAgDQogIHJldHVybihtaXNzaW5nX3ZhbHVlc1tvcmRlcigtTkEuQ291bnQpXSkNCn0NCmBgYA0KDQojI1dSSVRFICJQUkVGQUNFIg0KDQogLSBnb2FsIG9mIHRoZSBleGVyY2lzZQ0KIC0gYXBwcm9hY2ggd2l0aCBSTUQNCiANCkFmdGVyIHJlYWRpbmcgaW4gdGhlIGRhdGEsIGxldCdzIHRha2UgYSBnbGltcHNlIGF0IHRoZSBkYXRhIHN0cnVjdHVyZSB3ZSdsbCBiZSB3b3JraW5nIHdpdGg6DQpgYGB7ciwgZWNobyA9IEZBTFNFfQ0KZGF0YSA8LSBmcmVhZCgiLi8uLi9EYXRhL1NhbGVzIFByZWRpY3Rpb24vdHJhaW5pbmcuY3N2Iiwgc3RyaW5nc0FzRmFjdG9ycyA9IEYpDQpnbGltcHNlKGRhdGEpDQpgYGAgIA0KICANCk9uZSB0aGluZyB0byBub3RpY2UgaXMgdGhhdCB3ZSBoYXZlIGEgZmllbGQgY29udGFpbmluZyBmaWVsZHMsIGhvd2V2ZXIgUiB0cmVhdHMgaXQgYXMgYSBjaGFyYWN0ZXIgY29sdW1uIGJ5IGRlZmF1bHQuICAgDQpXZSdsbCBmaXggdGhhdCBpbiB0aGUgbmV4dCBzdGVwLCBidXQgYmVmb3JlIGxldCdzIHF1aWNrbHkgY2hlY2sgaWYgdGhlcmUgaXMgYW55IG9ic2VydmF0aW9uIHRoYXQgd2UgY291bGQgcmVtb3ZlIHJpZ2h0IGF3YXk6DQoNCmBgYHtyLCBlY2hvPUZBTFNFfQ0KZnVuX2NvdW50X25hKGRhdGEpDQpgYGANCiAgDQpObyBOQXMsIHRoYXQncyBnb29kIG5ld3MuIEJlZm9yZSBkZWNpZGluZyB3aGV0aGVyIHRoZSBkYXRhc2V0IGlzIGNvbXBsZXRlIG9yIG5vdCwgbGV0J3MgbWFrZSBzdXJlIGFsbCB0aGUgc2FsZXMgJiBxdWFudGl0eSB2YWx1ZXMgbWFrZSBzZW5zZSwgYnkgY2hlY2tpbmcgaG93IG1hbnkgMC1zIHdlIGVuY291bnRlci4gIA0KICANCkZpcnN0LCBmb3IgcXVhbnRpdGllczogIA0KYGBge3J9DQpkYXRhICU+JQ0KICBmaWx0ZXIocXVhbnRpdHkgPT0gMCkgJT4lDQogIHN1bW1hcml6ZShjb3VudCA9IG4oKSwNCiAgICAgICAgICAgIHN1bV9zYWxlc19hbW91bnQgPSBzdW0oc2FsZXNfYW1vdW50KSkNCmBgYCAgDQpUaGlzIGxvb2tzIHZlcnkgbGltaXRlZC4gV2l0aG91dCBmdXJ0aGVyIGNvbnRleHQgb24gdGhlIGRhdGEsIEknbGwganVzdCBhc3N1bWUgdGhleSBhcmUgcmVjb3JkaW5nIGVycm9ycywgYW5kIGV4bGN1ZGUgdGhlbSBmb3IgdGhlIGRhdGFzZXQuICANCg0KYGBge3J9DQpkYXRhICU+JQ0KICBmaWx0ZXIocXVhbnRpdHkgIT0gMCkgJT4lDQogIGZpbHRlcihzYWxlc19hbW91bnQgPT0gMCkgJT4lDQogIHN1bW1hcml6ZShjb3VudCA9IG4oKSwNCiAgICAgICAgICAgIHN1bV9xdWFudGl0eSA9IHN1bShxdWFudGl0eSkpDQpgYGANCg0KV2UgYXJlIGVuY291bnRlcmluZyBtYW55ICg2OTQ3IGluIHRvdGFsKSBvYnNlcnZhdGlvbnMgZm9yIHdoaWNoIHNhbGVzX2Ftb3VudCBpcyAwLiBJbnRlcmVzdGluZ2x5LCBzb21ldGltZXMgZXZlbiB0aGUgcmVjb3JkIHF1YW50aXR5IGlzIGxhcmdlciB0aGFuIDEgZm9yIHRoZXNlLiAgIA0KQWx0aG91Z2ggdGhleSBhcmUgbWFyZ2luYWwgY29tcGFyZWQgdG8gdGhlIG51bWJlciBvZiBhbGwgb2JzZXJ2YXRpb25zICg1MDBLKyksIGEgZGVjaXNpb24gbmVlZHMgdG8gYmUgc3RpbGwgbWFkZSBob3cgdG8gaGFuZGxlIHRoZW0sIGFzIHRoZXkgYXJlIGxpa2VseSBtaXNsZWFkaW5nIGZvciBhbnkgbW9kZWwgaW4gdGhlaXIgY3VycmVudCBmb3JtYXQuICANCg0KYGBge3IsIGluY2x1ZGUgPSBGQUxTRX0NCmRhdGEgJT4lDQogIGZpbHRlcihwcm9kdWN0X2lkID09IDE1MzM1MTcpICU+JQ0KICBoZWFkKCkNCmBgYCAgDQogIA0KVGhlcmUgbWlnaHQgYmUgYSByZWFzb24gYmVoaW5kIGhhdmluZyAwIHZhbHVlcyAob25lIEkgY2FuIHRoaW5rIG9mIGlzIHRoZXkgYXJlIGJlaW5nIHBhcnQgb2Ygc29tZSBraW5kIG9mIHByb21vdGlvbiksIGFuZCB0aGlzIHJlYXNvbiBjb3VsZCBhY3R1YWxseSBiZSBpbmRpY2F0aXZlIG9mIGZ1dHVyZSBzYWxlcyAoZS5nLiB0aGUgcHJvbW90aW9uIGlzIGZvciBmcmVxdWVudCBzaG9wcGVycyBldGMuKS4gICANCkluIHRoaXMgY2FzZSwgZmVhdHVyZXMgc2hvdWxkIGJlIGNyZWF0ZWQgb3V0IG9mIHRoZXNlIGl0ZW1zIHRvIGhlbHAgZW5oYW5jZSB0aGUgbW9kZWwncyBwcmVkaWN0aW9uLiAgDQpPbiB0aGUgb3RoZXIgaGFuZCwgdGhleSBtaWdodCBqdXN0IGJlIHNpbXBsZSBkYXRhIGlzc3Vlcy4gRGVsZXRlZCBpdGVtcyBzdGlsbCBzaG93aW5nIHVwIGFzIGxpbmUgaXRlbXMsIGluY29ycmVjdCBwcmljZXMgKGhlbmNlIHNhbGVzX2Ftb3VudCksIG9yIGFueXRoaW5nIHNpbWlsYXIuICANClJpZ2h0IG5vdyB3ZSBjYW4gc2ltcGx5IGFuZCBhc3N1bWUgdGhleSBhY3R1YWxseSByZXByZXNlbnQgd3JvbmcgZGF0YSAtIHNvIGJ5IHRha2luZyB0aGUgZWFzeSBwYXRoLCBJIHNpbXBseSBleGNsdWRlIHRoZW0gZnJvbSBmdXJ0aGVyIG1vZGVsaW5nIGVmZm9ydHMuICANCiAgDQpBcHBseWluZyB0aGUgZml4ZXMgYmVmb3JlIHdlIGNvbnRpbnVlOiAgDQpgYGB7cn0NCmRhdGEgPC0gZGF0YSAlPiUNCiAgICAgICAgICBmaWx0ZXIocXVhbnRpdHkgPiAwICYgc2FsZXNfYW1vdW50ID4gMCkgJT4lIA0KICAgICAgICAgIG11dGF0ZShwdXJjaGFzZV9kYXRlID0gYXMuRGF0ZShwdXJjaGFzZV9kYXRlLCAiJVktJW0tJWQiKSkgJT4lDQogICAgICAgICAgYXJyYW5nZShjb250YWN0X2lkLCBwdXJjaGFzZV9kYXRlKSAlPiUNCiAgICAgICAgICBzZWxlY3QoY29udGFjdF9pZCwgb3JkZXJfaWQsIHB1cmNoYXNlX2RhdGUsIHByb2R1Y3RfaWQsIHF1YW50aXR5LCBzYWxlc19hbW91bnQpDQpgYGANCg0KIyMjIERhdGEgZXhwbG9yYXRpb24gIA0KICANCkFzIHN0YW5kYXJkIHByYWN0aWNlLCBJJ2xsIGNvbnRpbnVlIGJ5IHZpc3VhbGx5IGV4cGxvcmluZyB3aGF0J3MgaW4gdGhlIGRhdGEsIHRoYXQgbWlnaHQgYmUgdXNlZnVsIGZvciBzYWxlcyBwcmVkaWN0aW9uLiAgDQogIA0KTXkgc3RhcnRpbmcgaHlwb3RoZXNpcyBpcyB0aGF0IG9uZSBvZiB0aGUgbW9zdCBpbXBvcnRhbnQgZmVhdHVyZXMgdG8gdW5kZXJzdGFuZCBpcyB3aGV0aGVyIHdlIGFyZSB3b3JraW5nIHJldHVybmluZyBjdXN0b21lcnMgLSB3aGljaCBtYXRlcmlhbGl6ZXMgYXMgaGF2aW5nIG1vcmUgdGhhbiBvbmUgcHVyY2hhc2VfZGF0ZSBwZXIgY29udGFjdF9pZCAodGhlIG90aGVyIGlzIHRoZSBzZWFzb25hbGl0eSBlZmZlY3QgLSBtb3JlIG9uIHRoYXQgbGF0ZXIpLg0KYGBge3J9DQoNCmBgYA0KDQo=</div>
 
 
 

@@ -39,14 +39,15 @@ fun_count_na <- function(dt) {
                                   keep.rownames = TRUE)
   setnames(missing_values, c("variable", "NA.Count"))
   
-  return(missing_values[order(-NA.Count)][NA.Count>0])
+  return(missing_values[order(-NA.Count)])
 }
 ```
 
+##WRITE "PREFACE"
 
-### Data exploration  
-  
-
+ - goal of the exercise
+ - approach with RMD
+ 
 After reading in the data, let's take a glimpse at the data structure we'll be working with:
 ```{r, echo = FALSE}
 data <- fread("./../Data/Sales Prediction/training.csv", stringsAsFactors = F)
@@ -56,15 +57,58 @@ glimpse(data)
 One thing to notice is that we have a field containing fields, however R treats it as a character column by default.   
 We'll fix that in the next step, but before let's quickly check if there is any observation that we could remove right away:
 
-```{r}
+```{r, echo=FALSE}
 fun_count_na(data)
 ```
+  
+No NAs, that's good news. Before deciding whether the dataset is complete or not, let's make sure all the sales & quantity values make sense, by checking how many 0-s we encounter.  
+  
+First, for quantities:  
+```{r}
+data %>%
+  filter(quantity == 0) %>%
+  summarize(count = n(),
+            sum_sales_amount = sum(sales_amount))
+```  
+This looks very limited. Without further context on the data, I'll just assume they are recording errors, and exlcude them for the dataset.  
 
 ```{r}
+data %>%
+  filter(quantity != 0) %>%
+  filter(sales_amount == 0) %>%
+  summarize(count = n(),
+            sum_quantity = sum(quantity))
+```
+
+We are encountering many (6947 in total) observations for which sales_amount is 0. Interestingly, sometimes even the record quantity is larger than 1 for these.   
+Although they are marginal compared to the number of all observations (500K+), a decision needs to be still made how to handle them, as they are likely misleading for any model in their current format.  
+
+```{r, include = FALSE}
+data %>%
+  filter(product_id == 1533517) %>%
+  head()
+```  
+  
+There might be a reason behind having 0 values (one I can think of is they are being part of some kind of promotion), and this reason could actually be indicative of future sales (e.g. the promotion is for frequent shoppers etc.).   
+In this case, features should be created out of these items to help enhance the model's prediction.  
+On the other hand, they might just be simple data issues. Deleted items still showing up as line items, incorrect prices (hence sales_amount), or anything similar.  
+Right now we can simply and assume they actually represent wrong data - so by taking the easy path, I simply exclude them from further modeling efforts.  
+  
+Applying the fixes before we continue:  
+```{r}
 data <- data %>%
-          filter(quantity > 0 & sales_amount > 0) %>% ##this could be explored furter. EXPLAIN!
+          filter(quantity > 0 & sales_amount > 0) %>% 
           mutate(purchase_date = as.Date(purchase_date, "%Y-%m-%d")) %>%
           arrange(contact_id, purchase_date) %>%
           select(contact_id, order_id, purchase_date, product_id, quantity, sales_amount)
+```
+
+### Data exploration  
+  
+As standard practice, I'll continue by visually exploring what's in the data, that might be useful for sales prediction.  
+  
+My starting hypothesis is that one of the most important features to understand is whether we are working returning customers - which materializes as having more than one purchase_date per contact_id (the other is the seasonality effect - more on that later).
+```{r}
+
 ```
 
