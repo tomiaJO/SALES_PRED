@@ -31,6 +31,9 @@ library(knitr)
 knitr::opts_chunk$set(warning = FALSE)
 knitr::opts_chunk$set(message = FALSE)
 
+options(digits = 4)
+options(scipen = 999)
+
 theme_set(theme_minimal())   # globally set ggplot theme
 
 set.seed(93)
@@ -42,9 +45,9 @@ fun_count_na <- function(dt) {
   ##counts and reports the missing observations for each column in a data.table object
   missing_values <- as.data.table(t(dt[, lapply(.SD, function(x) sum(is.na(x))), .SDcols = names(dt)]),
                                   keep.rownames = TRUE)
-  setnames(missing_values, c("variable", "NA.Count"))
+  setnames(missing_values, c("variable", "NA Count"))
   
-  return(missing_values[order(-NA.Count)])
+  return(missing_values[order(-`NA Count`)])
 }
 ```
 
@@ -57,21 +60,24 @@ My documentation approach is the following: the .html output will show only limi
 For the full code base, please refer to the .Rmd file.  
   
 The analysis is built of the following parts:  
-    1. Data review & cleaning
-    2. Exploratory data analysis
-    3. Featuring engineering
-    4. Model building and 
+    1. Data review & cleaning  
+    2. Exploratory data analysis  
+    3. Featuring engineering  
+    4. Model & model selection
+    5. Performance evaluation
 
-### 1. Data review & cleaning  
+# Data review & cleaning  
 
 After reading in the data, let's take a glimpse at the data structure we'll be working with:
 ```{r, echo = FALSE}
 data <- fread("./../Data/Sales Prediction/training.csv", stringsAsFactors = F)
 glimpse(data)
+head(data)
 ```  
   
-One thing to notice is that we have a field containing fields, however R treats it as a character column by default.   
-We'll fix that in the next step, but before let's quickly check if there is any observation that we could remove right away:
+One thing to notice is that we have a field containing dates, however R treats it as a character column by default. 
+  
+We'll correct that in the next step, but before that let's check if there is any observation that will require some fixing as well:
 
 ```{r, echo=FALSE}
 fun_count_na(data)
@@ -119,7 +125,7 @@ data <- data %>%
           select(contact_id, order_id, purchase_date, product_id, quantity, sales_amount)
 ```
 
-### Data exploration  
+# Data exploration  
   
 As standard practice, I'll continue by visually exploring what's in the data, that might be useful for sales prediction.  
   
@@ -143,12 +149,20 @@ per_contact_avgs %>%
 ```
   
 Below is a visualization of the distribution of transactions among customers, broken into two groups, one having more than 25 transactions, and one having less.  
-```{r}
+```{r, fig.width=8, fig.height=4, fig.align='center'}
 ##visualize
 per_contact_avgs %>%
+  mutate(transaction_category = ifelse(transaction_count < 25, 
+                                       "Less than 25 transactions",
+                                       "25+ transactions")) %>%
+  mutate(transaction_category = factor(transaction_category, levels =
+                                         c("Less than 25 transactions", "25+ transactions"))) %>%
   ggplot() + 
-  geom_histogram(aes(x= transaction_count)) +
-  facet_wrap(~transaction_count < 25, scales = "free") 
+  geom_histogram(aes(x= transaction_count, fill = transaction_category)) +
+  facet_wrap(~transaction_category, scales = "free") +
+  scale_y_continuous(name="# of contact_id-s", labels = comma) +
+  scale_x_continuous(name="Count of total transactions", labels = comma) +
+  labs(title = "Grouping contact_id-s based on number of transactions")
 ```
 
 What do we learn from this?  
@@ -159,12 +173,24 @@ What do we learn from this?
 Maybe not suprisingly, total sales per contract_id do closely resemble a lognormal distribution:
 ```{r, echo=FALSE}
 p1 <- per_contact_avgs %>%
+  mutate(transaction_category = ifelse(transaction_count < 2, 
+                                       "One-time customer",
+                                       "Returning customer")) %>%
+  mutate(transaction_category = factor(transaction_category, levels =
+                                         c("One-time customer", "Returning customer"))) %>%
   ggplot() + 
-  geom_histogram(aes(x= log(total_sales_amount))) +
-  facet_wrap(~transaction_count < 2, scales = "free_y") 
+  geom_histogram(aes(x= total_sales_amount)) +
+  scale_y_continuous(trans='log10', labels = comma) 
++
+  facet_wrap(~transaction_category, scales = "free")
+  
 ## add avg. spending per customer
 ## tidy out visual
 
+```
+
+
+```{r}
 #make this one chart with overlapping dist-s:
 p2 <- per_contact_avgs %>%
   ggplot() + 
@@ -173,6 +199,8 @@ p2 <- per_contact_avgs %>%
 
 grid.arrange(p1, p2, ncol = 1)
 ```
+
+
 ## bit further text on this is needed... specially the avg. sales part
 
 
@@ -259,3 +287,8 @@ data %>%
     facet_grid(~purchase_year)
 ```
 
+# Feature engineering
+
+# Modeling & model selection
+
+# Model performance evaluation and final words
