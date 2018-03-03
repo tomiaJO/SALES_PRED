@@ -528,7 +528,12 @@ train_control <- trainControl(method = "cv",
 ```
 
 ```{r}
-names(data_train)
+data_train_full <- copy(data_train)
+data_train_just_returning <- data_train %>%
+                                filter(existing_2012_contact_id == "Yes") %>%
+                                select(everything(), -existing_2012_contact_id)
+
+avg_sales_2012 <- mean(df_for_prediction$total_sales_2012)
 ```
 ### Benchmark model - simple glm  
   
@@ -536,15 +541,40 @@ Training the model:
 ```{r}
 #base model
 set.seed(93)
-glm_fit <- train(total_sales_2013 ~ total_sales_2012,
-                   method = "glm",
-                   data = data_train,
-                   trControl = train_control)
+glm_fit_full <- train(total_sales_2013 ~ total_sales_2012,
+                       method = "glm",
+                       data = data_train_full,
+                       trControl = train_control)
+
+glm_fit_just_returning <- train(total_sales_2013 ~ total_sales_2012,
+                                 method = "glm",
+                                 data = data_train_just_returning,
+                                 trControl = train_control)
 ```
 
 ```{r}
-glm_predictions <- predict.train(glm_fit, newdata = data_test)
-RMSE(data_test$total_sales_2013, glm_predictions)
+glm_full_predictions <- predict.train(glm_fit_full, newdata = data_test)
+glm_just_returning_predictions <- predict.train(glm_fit_just_returning, newdata = data_test) %>%
+                                    bind_cols(predicted_sales_w_corr = ., existing_2012_contact_id = data_test$existing_2012_contact_id, actual_sales = data_test$total_sales_2013) %>%
+                                    mutate(predicted_sales_w_corr = ifelse(existing_2012_contact_id == "Yes", predicted_sales_w_corr, avg_sales_2012))
+
+glm_pred <- bind_cols(predicted = glm_full_predictions, glm_just_returning_predictions) %>% as.data.table()
+
+
+rmse_full <- RMSE(data_test$total_sales_2013, 
+                  glm_pred$predicted)
+rmse_just_returning <- RMSE(data_test[existing_2012_contact_id == "Yes"]$total_sales_2013,
+                            glm_pred[existing_2012_contact_id == "Yes"]$predicted)
+
+rmse_corr_full <- RMSE(data_test$total_sales_2013,
+                       glm_just_returning_predictions$predicted_sales_w_corr)
+rmse_corr_just_returning <- RMSE(data_test[existing_2012_contact_id == "Yes"]$total_sales_2013,
+                                 glm_just_returning_predictions[existing_2012_contact_id == "Yes"]$predicted_sales_w_corr)
+
+```
+
+
+```{r}
 glm_test_pred <- bind_cols(actual = data_test$total_sales_2013, predicted = glm_predictions)
 mean(df_for_prediction$total_sales_2013)
 sd(df_for_prediction$total_sales_2013)
@@ -558,6 +588,8 @@ ggplot(data = glm_test_pred, aes(x=actual, y=predicted)) +
  #- with 45 grid line signalling "good" predictions
  #- build function for this that can be used in all models
 ```
+
+
 
 ### Model 2 - glmnet with LASSO & ridge - parameter tuned
 
