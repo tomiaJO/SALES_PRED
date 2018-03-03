@@ -3,12 +3,12 @@ title: "Sales Prediction Exercise"
 author: "Tamas Koncz"
 date: '2018-03-04'
 output:
-  html_notebook:
+  html_document:
     df_print: paged
     toc: true
     number_sections: true
     theme: united
-  html_document:
+  html_notebook:
     df_print: paged
     toc: true
     number_sections: true
@@ -167,7 +167,7 @@ per_contact_avgs %>%
 
 What do we learn from this?  
     1. First, most customers only buy once. This is important for our modeling, as we won't know anything about them (priori to their first purchase) when we try to forecast their sales. Hence, all we'll be able to rely on is some generalizations made based on when they make their purchase.  
-    2. Any way we slice the customers, transaction counts will be heavily skewed to the left - even more than for lognormal distributions.
+    2. Any way we slice the customers, transaction counts will be heavily skewed to the left - even more than for lognormal distributions.  
     3. A very important thing that we _don't_ learn is how much sales these different groups generate.  
     
 Maybe not suprisingly, total sales per contract_id do closely resemble a lognormal distribution:
@@ -180,8 +180,7 @@ p1 <- per_contact_avgs %>%
                                          c("One-time customer", "Returning customer"))) %>%
   ggplot() + 
   geom_histogram(aes(x= total_sales_amount)) +
-  scale_y_continuous(trans='log10', labels = comma) 
-+
+  scale_x_continuous(trans='log10', labels = comma) +
   facet_wrap(~transaction_category, scales = "free")
   
 ## add avg. spending per customer
