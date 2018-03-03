@@ -18,6 +18,7 @@ output:
 ```{r setup, message=FALSE, include=FALSE}
 library(data.table)
 library(dplyr)
+library(purrr)
 library(lubridate)
 library(ggplot2)
 library(gridExtra)
@@ -342,7 +343,8 @@ features_2012 <- data %>%
                             total_line_items_2012 = n(),
                             total_purchases_2012 = n_distinct(order_id),
                             total_quantity_2012 = sum(quantity, na.rm = TRUE)
-                            )
+                            ) %>%
+                  mutate(existing_2012_contact_id = "Y")
 ```
 Again, look at how the data looks arranged by top spenders on top:  
 ```{r}
@@ -356,9 +358,143 @@ The results are already promising - some customers are actually getting repeated
   
 Putting together what we have:
 ```{r}
-
+df_for_prediction <- sales_2013 %>%
+                      left_join(features_2012, by = "contact_id")
+```
+  
+Taking a look:  
+```{r}
+head(df_for_prediction)
 ```
 
-# Modeling & model selection
+Not suprisingly, the features have many NAs:
+```{r, echo = FALSE}
+fun_count_na(data.table(df_for_prediction))
+```
 
-# Model performance evaluation and final words
+
+
+What does this mean? Remember, many of the customers are one-off purchasers, for whom no historical data will be available.  
+Here (based on the assumption that the starting dataset was a complete), we know that all the NAs are actually true 0s, hence we can just substitue the NAs with 0s.  
+  
+```{r}
+df_for_prediction <- df_for_prediction %>%
+                      mutate(existing_2012_contact_id = ifelse(!is.na(existing_2012_contact_id), "Yes", "No"))
+
+df_for_prediction <- map(df_for_prediction, function(x) ifelse(is.na(x), 0, x)) %>% ##given vector x, if a value is NA it will be replaced by 0
+                      as.data.table()
+## Notes: this approach needs to be applied with caution! we don't want to replace non-number NAs with 0 for example.
+## In this case it will be fine though - we already understand where NAs happen in the data
+
+
+head(df_for_prediction)
+```  
+    
+  
+Making predictions on the zeros is one way to handle this issue - another one would be two build separate models for returning customers (a more complex one), and new customers.  
+We'll see in the modeling phase which one makes more sense in this case.  
+
+## Visual exploration of the "new" features  
+
+```{r}
+names(df_for_prediction)
+```
+
+```{r, echo = FALSE, fig.width=10, fig.height=6, fig.align='center'}
+p1 <- df_for_prediction %>%
+  ggplot(aes(x= total_sales_2012, y= total_sales_2013)) +
+    geom_point(alpha = 0.1) +
+    geom_smooth()
+
+p2 <- df_for_prediction %>%
+  ggplot(aes(x= total_line_items_2012, y= total_sales_2013)) +
+    geom_point(alpha = 0.1) +
+    geom_smooth()
+
+p3 <- df_for_prediction %>%
+  ggplot(aes(x= total_purchases_2012, y= total_sales_2013)) +
+    geom_point(alpha = 0.1) +
+    geom_smooth()
+
+p4 <- df_for_prediction %>%
+  ggplot(aes(x= total_quantity_2012, y= total_sales_2013)) +
+    geom_point(alpha = 0.1) +
+    geom_smooth()
+
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+
+
+# Modeling & model selection  
+
+For this part I'll leverage the functionality given by Max Kuhn's caret package, which gives easy access to many predictive methods, with possibility to tune the most important parameters.  
+  
+Briefly, this step is of three parts: I'll train & tune models with cross-validation.  
+Once this is done, we can move onto selecting the best model - I'll use a separate held-out set for this, to avoid measuring performance on the tuning set.  
+Selection criteria will be simply RMSE, which I'll try to optimize not just in general, but for separte sets of customer types as well.  
+
+## Separating training and evaluation datasets  
+  
+Let's separate the different datasets we will use for the different steps. Caret helps us with this one as well, hence we don't need to hustle with randomization.  
+( _Note: At this point we would need to be cautious with time-series data and partitioning. However, the way the dataset was engineered, this is no longer a concern._)
+```{r}
+training_ratio <- 0.6
+
+set.seed(93) #for reproducibility
+train_indices <- createDataPartition(y = df_for_prediction[["total_sales_2013"]],
+                                     times = 1,
+                                     p = training_ratio,
+                                     list = FALSE)
+data_train <- df_for_prediction[train_indices, ]
+data_test <- df_for_prediction[-train_indices, ]
+
+split_ratio <- 3/4
+
+set.seed(93) #for reproducibility
+perf_indices <- createDataPartition(y = data_test[["total_sales_2013"]],
+                                     times = 1,
+                                     p = split_ratio,
+                                     list = FALSE)
+data_test <- data_test[perf_indices, ]
+data_perf <- data_test[-perf_indices, ]
+```
+  
+We'll be using 60% of the all observations for training&tunining, 30% for model selection, and a third set of 10% for the final evaulation of the best model's performance.  
+  
+## Training & parameter tuning  
+
+When building models, I think using benchmarks is a good practice.  
+Generally, I would break benchmarks into two categories:  
+    1. Base models, which can be used to evaulate the added value by more complex ones
+    2. "The best possible model", usually something very complex for prediction. This can be later stripped of the extra features, and see if a simpler version (which might be easier to interpret) is able to provide similar performance metrics
+    
+We'll build one from the 1st category - using only one predictor, total sales from 2012. This model will be a simple linear model (we've seen it in the previous visuals that the relationship is close to linear).  
+  
+As discussed, for all models I'm using 10-fold CV to help avoid overfitting:  
+```{r}
+train_control <- trainControl(method = "cv",
+                              number = 10)
+```
+
+```{r}
+names(data_train)
+```
+
+Training the model:
+```{r}
+#base model
+set.seed(93)
+glm_model <- train(total_sales_2013 ~ total_sales_2012,
+                   method = "glm",
+                   data = data_train,
+                   trControl = train_control)
+```
+
+
+
+# Model performance evaluation and final words  
+
+## Performance evaulation  
+
+## External validity?  
