@@ -59,12 +59,17 @@ The output will be available in an .Rmd and .html files.
 My documentation approach is the following: the .html output will show only limited amount of code, only snippets that are helpful for understanding the logic applied (others are "hidden" by the 'echo = FALSE' prefix for code chunks).  
 For the full code base, please refer to the .Rmd file.  
   
-The analysis is built of the following parts:  
+The presentation of the analysis is built of the following parts:  
     1. Data review & cleaning  
     2. Exploratory data analysis  
     3. Featuring engineering  
     4. Model & model selection
-    5. Performance evaluation
+    5. Performance evaluation  
+    
+An important feature of data analysis is that it is an iterative process - we are likely to go back to earlier steps once we learn something new about the data to expand what we did.  
+This iterative process is by definition not very linear - presenting things as they evolved would be a very messy read for anyone.  
+Hence, this document is created to capture the final state of the analysis - many of these smaller iterations are inherently lost unfortunately. Please keep this in mind when reading.  
+  
 
 # Data review & cleaning  
 
@@ -149,7 +154,7 @@ per_contact_avgs %>%
 ```
   
 Below is a visualization of the distribution of transactions among customers, broken into two groups, one having more than 25 transactions, and one having less.  
-```{r, fig.width=8, fig.height=4, fig.align='center'}
+```{r, fig.width=8, fig.height=3, fig.align='center'}
 ##visualize
 per_contact_avgs %>%
   mutate(transaction_category = ifelse(transaction_count < 25, 
@@ -171,7 +176,7 @@ What do we learn from this?
     3. A very important thing that we _don't_ learn is how much sales these different groups generate.  
     
 Maybe not suprisingly, total sales per contract_id do closely resemble a lognormal distribution:
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.width=10, fig.height=6, fig.align='center'}
 p1 <- per_contact_avgs %>%
   mutate(transaction_category = ifelse(transaction_count < 2, 
                                        "One-time customer",
@@ -179,26 +184,32 @@ p1 <- per_contact_avgs %>%
   mutate(transaction_category = factor(transaction_category, levels =
                                          c("One-time customer", "Returning customer"))) %>%
   ggplot() + 
-  geom_histogram(aes(x= total_sales_amount)) +
+  geom_histogram(aes(x= total_sales_amount, fill = transaction_category)) +
   scale_x_continuous(trans='log10', labels = comma) +
   facet_wrap(~transaction_category, scales = "free")
-  
-## add avg. spending per customer
-## tidy out visual
-
-```
 
 
-```{r}
-#make this one chart with overlapping dist-s:
-p2 <- per_contact_avgs %>%
-  ggplot() + 
-  geom_histogram(aes(x= log(avg_sales_amount))) +
-  facet_wrap(~transaction_count < 2, scales = "free_y")
+temp <- per_contact_avgs %>%
+  mutate(transaction_category = ifelse(transaction_count < 2, 
+                                       "One-time customer",
+                                       "Returning customer")) %>%
+  mutate(transaction_category = factor(transaction_category, levels =
+                                         c("One-time customer", "Returning customer")))
+temp1 <- temp %>%
+          filter(transaction_category == "One-time customer")
+
+temp2 <- temp %>%
+          filter(transaction_category == "Returning customer")
+
+
+p2 <- ggplot() + 
+  geom_density(data = temp1, aes(x= avg_sales_amount, fill = transaction_category), alpha = 0.4) +
+  geom_density(data = temp2, aes(x= avg_sales_amount, fill = transaction_category), alpha = 0.25) +
+  scale_x_continuous(trans='log10', labels = comma) 
+
 
 grid.arrange(p1, p2, ncol = 1)
 ```
-
 
 ## bit further text on this is needed... specially the avg. sales part
 
@@ -225,7 +236,7 @@ data <- data %>%
 
 ```
 
-```{r}
+```{r, echo = FALSE}
 fun_plot_trend <- function(df1, x_var, y_var, x_breaks) {
   
   p <- ggplot(data = df1, aes_string(x= x_var)) + 
@@ -286,7 +297,67 @@ data %>%
     facet_grid(~purchase_year)
 ```
 
-# Feature engineering
+# Feature engineering  
+
+In this section, we'll be getting the data in shape to use for prediction.  
+  
+In this exercise, the goal is to predict a customers spending for a new year, based on historical spending patterns.   
+We have two years in our dataset, 2012 & 2013 - given this, the setup will be rather simple - using everything we can from 2012, we want to predict a total sales_amount number for 2013 for a given customer.  
+When working with time data, and trying to make predictions, it's very important to avoid any "future leaks" - we only want to predict based on information that was available _a priori_ compared to when we are making the prediction.  
+Here, we basically already achieve this by data from 2012 as predictors for 2013 sales, so this is not something we need to worry about going forward.  
+  
+  
+
+```{r, echo = FALSE}
+data <- data %>%
+          mutate(year = year(purchase_date))
+```
+
+So, first steps first: let's calculate the per customer total spending for 2013.  
+```{r}
+sales_2013 <- data %>%
+                filter(year == 2013) %>%
+                group_by(contact_id) %>%
+                summarize(total_sales_2013 = sum(sales_amount, na.rm = TRUE))
+```
+  
+  
+  
+A look at how the data looks arranged by top spenders on top:  
+```{r, echo = FALSE}
+sales_2013 %>%
+  arrange(desc(total_sales_2013), contact_id) %>%
+  head(5)
+```
+  
+  
+  
+For 2012 we can start by building a couple of features that are rather "obvious" - total sales, transaction count, etc.:
+
+```{r}
+features_2012 <- data %>%
+                  filter(year == 2012) %>%
+                  group_by(contact_id) %>%
+                  summarize(total_sales_2012 = sum(sales_amount, na.rm = TRUE),
+                            total_line_items_2012 = n(),
+                            total_purchases_2012 = n_distinct(order_id),
+                            total_quantity_2012 = sum(quantity, na.rm = TRUE)
+                            )
+```
+Again, look at how the data looks arranged by top spenders on top:  
+```{r}
+features_2012 %>%
+  arrange(desc(total_sales_2012), contact_id) %>%
+  head(5)
+```
+  
+The results are already promising - some customers are actually getting repeated in the top5 (e.g. contact_id 35244243 or 49141897), which is just a minor signal that there is likely to be a relationship between the two years' spending patterns. I am going to explore this and a lot more futher after we are finished building all our features for prediction.
+  
+  
+Putting together what we have:
+```{r}
+
+```
 
 # Modeling & model selection
 
