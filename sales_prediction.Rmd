@@ -336,16 +336,22 @@ sales_2013 %>%
 For 2012 we can start by building a couple of features that are rather "obvious" - total sales, transaction count, etc.:
 
 ```{r}
-features_2012 <- data %>%
-                  filter(year == 2012) %>%
+data_2012 <- data %>%
+              filter(year == 2012)
+
+features_2012 <- data_2012 %>%
                   group_by(contact_id) %>%
-                  summarize(total_sales_2012 = sum(sales_amount, na.rm = TRUE),
+                  summarize(total_sales_2012 = sum(sales_amount, na.rm = T),
                             total_line_items_2012 = n(),
                             total_purchases_2012 = n_distinct(order_id),
-                            total_quantity_2012 = sum(quantity, na.rm = TRUE)
+                            total_quantity_2012 = sum(quantity, na.rm = T),
+                            biggest_purchase_item = max(sales_amount, na.rm = T),
+                            smallest_purchase_item = min(sales_amount, na.rm = T)
                             ) %>%
                   mutate(existing_2012_contact_id = "Y")
 ```
+  
+  
 Again, look at how the data looks arranged by top spenders on top:  
 ```{r}
 features_2012 %>%
@@ -354,12 +360,56 @@ features_2012 %>%
 ```
   
 The results are already promising - some customers are actually getting repeated in the top5 (e.g. contact_id 35244243 or 49141897), which is just a minor signal that there is likely to be a relationship between the two years' spending patterns. I am going to explore this and a lot more futher after we are finished building all our features for prediction.
+
+More features on yearly data:
+```{r}
+features_2_2012 <- data_2012 %>%
+                    group_by(contact_id, order_id) %>%
+                    summarize(sales_amount = sum(sales_amount),
+                              most_expensive_line = max(sales_amount),
+                              least_expensive_line = min(sales_amount),
+                              count_lines = n()) %>%
+                    group_by(contact_id) %>%
+                    summarize(avg_sales_by_order_2012 = mean(sales_amount),
+                              max_sales_by_order_2012 = max(sales_amount),
+                              min_sales_by_order_2012 = min(sales_amount),
+                              avg_most_expensive_line_by_order_2012 = mean(most_expensive_line),
+                              avg_least_expensive_line_by_order_2012 = mean(least_expensive_line),
+                              avg_line_item_count_by_order_2012 = mean(count_lines),
+                              purchase_count = n())
+```
+  
+  
+A lot of features were created already - however, all of these used the data for the whole year.  
+We've seen that seasonality is important - let's build features that take this into account in some way:
+```{r}
+features_3_2012 <- data_2012 %>%
+                    group_by(contact_id, purchase_month) %>%
+                    summarize(sales_amount = sum(sales_amount)) %>%
+                    group_by(contact_id) %>%
+                    tidyr::spread(key = purchase_month, value = sales_amount, fill = 0, sep= "_")
+
+new_feature_names <- paste(gsub("purchase_month", "sales_in_month", names(features_3_2012)), "2012", sep = "_")[2:13]
+setnames(features_3_2012, old = names(features_3_2012)[2:13], new_feature_names)
+
+features_4_2012 <- data_2012 %>%
+                    group_by(contact_id, purchase_month) %>%
+                    summarize(order_count = n_distinct(order_id)) %>%
+                    group_by(contact_id) %>%
+                    tidyr::spread(key = purchase_month, value = order_count, fill = 0, sep= "_")
+
+new_feature_names <- paste(gsub("purchase_month", "orders_in_month", names(features_4_2012)), "2012", sep = "_")[2:13]
+setnames(features_4_2012, old = names(features_4_2012)[2:13], new_feature_names)
+```
   
   
 Putting together what we have:
 ```{r}
 df_for_prediction <- sales_2013 %>%
-                      left_join(features_2012, by = "contact_id")
+                      left_join(features_2012, by = "contact_id") %>%
+                      left_join(features_2_2012, by = "contact_id") %>%
+                      left_join(features_3_2012, by = "contact_id") %>%
+                      left_join(features_4_2012, by = "contact_id")
 ```
   
 Taking a look:  
@@ -391,7 +441,7 @@ head(df_for_prediction)
 ```  
     
   
-Making predictions on the zeros is one way to handle this issue - another one would be two build separate models for returning customers (a more complex one), and new customers.  
+Making predictions on the zeros is one way to handle this issue - another one would be two build separate models for returning customers (a more complex one), and new customers (something very simple).  
 We'll see in the modeling phase which one makes more sense in this case.  
 
 ## Visual exploration of the "new" features  
@@ -480,18 +530,88 @@ train_control <- trainControl(method = "cv",
 ```{r}
 names(data_train)
 ```
-
+### Benchmark model - simple glm  
+  
 Training the model:
 ```{r}
 #base model
 set.seed(93)
-glm_model <- train(total_sales_2013 ~ total_sales_2012,
+glm_fit <- train(total_sales_2013 ~ total_sales_2012,
                    method = "glm",
                    data = data_train,
                    trControl = train_control)
 ```
 
+```{r}
+glm_predictions <- predict.train(glm_fit, newdata = data_test)
+RMSE(data_test$total_sales_2013, glm_predictions)
+glm_test_pred <- bind_cols(actual = data_test$total_sales_2013, predicted = glm_predictions)
+mean(df_for_prediction$total_sales_2013)
+sd(df_for_prediction$total_sales_2013)
 
+ggplot(data = glm_test_pred, aes(x=actual, y=predicted)) +
+  geom_point()
+
+##TODO:
+ #- predict new customers just by the average in 2012
+ #- visualize in two facets
+ #- with 45 grid line signalling "good" predictions
+ #- build function for this that can be used in all models
+```
+
+### Model 2 - glmnet with LASSO & ridge - parameter tuned
+
+
+```{r}
+tune_grid <- expand.grid("alpha" = c(0, 1),
+                         "lambda" = seq(from = 0.00, to = 1, by = 0.025)) ##this was pre-tuned to select best set of parameters to try
+
+set.seed(93)
+glmnet_fit <- train(total_sales_2013 ~ . -contact_id,
+                   method = "glmnet",
+                   data = data_train,
+                   trControl = train_control,
+                   tuneGrid = tune_grid,
+                   preProcess = c("center", "scale"))
+```
+
+
+```{r}
+glmnet_predictions <- predict.train(glmnet_fit, newdata = data_test)
+RMSE(data_test$total_sales_2013, glmnet_predictions)
+```
+
+### Model 3 - single decision tree  
+
+```{r}
+set.seed(93)
+rpart_fit <- train(total_sales_2013 ~ . -contact_id,
+                   data = data_train,
+                   method = "rpart",
+                   tuneLength = 20,
+                   trControl = train_control)
+```
+
+```{r}
+rpart_predictions <- predict.train(rpart_fit, newdata = data_test)
+RMSE(data_test$total_sales_2013, rpart_predictions)
+```
+
+
+### Model 4 - bagged tree or RF
+
+```{r}
+set.seed(93)
+treebag_fit <- train(total_sales_2013 ~ . -contact_id,
+                   data = data_train,
+                   method = "treebag",
+                   trControl = train_control)
+```
+
+```{r}
+treebag_predictions <- predict.train(treebag_fit, newdata = data_test)
+RMSE(data_test$total_sales_2013, treebag_predictions)
+```
 
 # Model performance evaluation and final words  
 
