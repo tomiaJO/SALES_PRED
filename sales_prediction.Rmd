@@ -279,12 +279,8 @@ grid.arrange(p1, p2, p3, ncol = 1)
 ##todo tidy-up, explain
 ```
 
-```{r}
-data %>%
-  arrange(contact_id, purchase_date) %>%
-  head(20)
-```
-```{r}
+
+```{r, echo = FALSE}
 #TODO: break this out by purchase count 0 or 1+ by contact_id
 data %>%
   group_by(purchase_year, purchase_month, contact_id, order_id) %>%
@@ -448,7 +444,17 @@ We'll see in the modeling phase which one makes more sense in this case.
 ## Visual exploration of the "new" features  
 
 ```{r}
-names(df_for_prediction)
+plotlist <- list()
+i = 1
+for(var in names(df_for_prediction)[c(-1,-2)][1:2]) {
+  plotlist[[i]] <- df_for_prediction %>%
+                  ggplot(aes_string(x= var, y= "total_sales_2013")) +
+                    geom_point(alpha = 0.1) +
+                    geom_smooth()
+  i = i + 1
+}
+
+grid.arrange(grobs = plotlist, ncol = 3) 
 ```
 
 ```{r, echo = FALSE, fig.width=10, fig.height=6, fig.align='center'}
@@ -674,7 +680,7 @@ p_model3 <- fun_plot_model_eval("Single decision tree (rpart)", rpart_fit_full, 
 ```
 
 
-### Model 4 - bagged tree or RF
+### Model 4 - Random Forest
 
 ```{r}
 #setting tuning parameters
@@ -683,7 +689,9 @@ tunegrid <- expand.grid(.mtry = 7)
 set.seed(93)
 rf_fit_full <- train(total_sales_2013 ~ . -contact_id,
                    data = data_train,
-                   method = "rpart",
+                   method = "rf",
+                   tuneGrid=tunegrid,
+                   ntree=1000,
                    trControl = train_control)
 
 set.seed(93)
@@ -691,12 +699,12 @@ rf_fit_just_returning <- train(total_sales_2013 ~ . -contact_id,
                    data = data_train_just_returning,
                    method = "rf",
                    tuneGrid=tunegrid,
-                   ntree=100,
+                   ntree=1000,
                    trControl = train_control)
 ```
 
 ```{r, echo = FALSE}
-p_model4 <- fun_plot_model_eval("Single decision tree (rpart)", rf_fit_full, rf_fit_just_returning, data_test, avg_sales_2012)
+p_model4 <- fun_plot_model_eval("Random Forest - 1000 trees", rf_fit_full, rf_fit_just_returning, data_test, avg_sales_2012)
 ```
 
 ```{r, echo = FALSE, fig.align='center', fig.width=15, fig.height=16}
