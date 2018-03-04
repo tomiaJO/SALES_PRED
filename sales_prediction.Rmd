@@ -27,6 +27,7 @@ library(reshape)
 
 library(caret)
 library(glmnet)
+library(randomForest)
 
 library(knitr)
 knitr::opts_chunk$set(warning = FALSE)
@@ -545,59 +546,80 @@ glm_fit_full <- train(total_sales_2013 ~ total_sales_2012,
                        method = "glm",
                        data = data_train_full,
                        trControl = train_control)
-
+set.seed(93)
 glm_fit_just_returning <- train(total_sales_2013 ~ total_sales_2012,
                                  method = "glm",
                                  data = data_train_just_returning,
                                  trControl = train_control)
 ```
 
-```{r}
-glm_full_predictions <- predict.train(glm_fit_full, newdata = data_test)
+```{r, echo = FALSE}
+fun_plot_model_eval <- function(model= NULL, fit_full, fit_just_returning, testdata, avgSales_2012) {
+  #creates "calibration" plots & calculates RMSE for predictions
+  
+  #calculate predictions
+  full_predictions <- predict.train(fit_full, newdata = testdata)
+  
+  just_returning_predictions <- predict.train(fit_just_returning, newdata = testdata) %>%
+                                      bind_cols(predicted_sales_w_corr = ., 
+                                                existing_2012_contact_id = data_test$existing_2012_contact_id, 
+                                                actual_sales = data_test$total_sales_2013) %>%
+                                      mutate(predicted_sales_w_corr = ifelse(existing_2012_contact_id == "Yes", 
+                                                                             predicted_sales_w_corr, avg_sales_2012))
 
-glm_just_returning_predictions <- predict.train(glm_fit_just_returning, newdata = data_test) %>%
-                                    bind_cols(predicted_sales_w_corr = ., existing_2012_contact_id = data_test$existing_2012_contact_id, actual_sales = data_test$total_sales_2013) %>%
-                                    mutate(predicted_sales_w_corr = ifelse(existing_2012_contact_id == "Yes", predicted_sales_w_corr, avg_sales_2012))
+  #bind datasets for charting & RMSE calc
+  actual_vs_pred_full <- bind_cols(predicted = full_predictions, just_returning_predictions) %>% 
+                          mutate(sample = "All")
+  
+  actual_vs_pred_just_returning <- actual_vs_pred_full %>%
+                                    filter(existing_2012_contact_id == "Yes") %>%
+                                    mutate(sample = "Returning customers")
+  
+  actual_vs_pred_just_new <- actual_vs_pred_full %>%
+                                    filter(existing_2012_contact_id == "No") %>%
+                                    mutate(sample = "New customers")
+  
+  actual_vs_pred  <- bind_rows(actual_vs_pred_full, actual_vs_pred_just_returning, actual_vs_pred_just_new)                              
+  
+  #RMSE calc.
+  rmse_corr_full <- RMSE(data_test$total_sales_2013,
+                         actual_vs_pred_full$predicted_sales_w_corr)
+  rmse_corr_just_returning <- RMSE(data_test[existing_2012_contact_id == "Yes"]$total_sales_2013,
+                                   actual_vs_pred_just_returning$predicted_sales_w_corr)
+  
+  #prepare texts for chart
+  s_title <- ifelse(is.null(model), "", paste("Calibration plot for Model:", model, sep = " "))
+  
+  s_subtitle <- paste("Full model RMSE: ", 
+                     format(round(rmse_corr_full, digits = 3), nsmall=2), 
+                     ". Only for returning customers: ", 
+                     format(round(rmse_corr_just_returning, digits = 3), nsmall=2), 
+                     sep = "")
+  s_caption = "Note: Non-linear scale used for both axes"
+  
+  #create chart
+  actual_vs_pred %>%
+      mutate(category = cut(actual_sales,
+                            c(0, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, Inf),
+                            include.lowest = TRUE)) %>%
+      group_by(sample, category) %>%
+      summarize(mean_actual = mean(actual_sales),
+                mean_predicted = mean(predicted),
+                mean_predicted_w_corr = mean(predicted_sales_w_corr),
+                num_obs = n()) %>%
+    ggplot(aes(x= mean_actual, y = mean_predicted_w_corr, size= num_obs)) +
+      geom_point(aes(color = sample)) +
+      geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+      scale_y_continuous(name = "Avg. predicted sales", labels = comma, trans="log10", breaks = c(0, 500, 1000, 5000, 10000)) +
+      scale_x_continuous(name = "Avg. actual sales", labels = comma, trans="log10", breaks = c(0, 500, 1000, 5000, 10000)) +
+      labs(title = s_title, subtitle = s_subtitle, caption = s_caption) +
+      theme(legend.position="none") +
+      facet_grid(~sample)  
+}
+```
 
-
-actual_vs_pred <- bind_cols(predicted = glm_full_predictions, glm_just_returning_predictions) %>% 
-                    as.data.table()
-
-
-rmse_full <- RMSE(data_test$total_sales_2013, 
-                  actual_vs_pred$predicted)
-rmse_just_returning <- RMSE(data_test[existing_2012_contact_id == "Yes"]$total_sales_2013,
-                            actual_vs_pred[existing_2012_contact_id == "Yes"]$predicted)
-
-rmse_corr_full <- RMSE(data_test$total_sales_2013,
-                       actual_vs_pred$predicted_sales_w_corr)
-rmse_corr_just_returning <- RMSE(data_test[existing_2012_contact_id == "Yes"]$total_sales_2013,
-                                 actual_vs_pred[existing_2012_contact_id == "Yes"]$predicted_sales_w_corr)
-
-
-rmse_full
-rmse_just_returning
-rmse_corr_full
-rmse_corr_just_returning
-
-
-calibration <- actual_vs_pred %>%
-                    mutate(category = cut(actual_sales,
-                                          c(0, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, Inf),
-                                          include.lowest = TRUE)) %>%
-                    group_by(category) %>%
-                    summarize(mean_actual = mean(actual_sales),
-                              mean_predicted = mean(predicted),
-                              mean_predicted_w_corr = mean(predicted_sales_w_corr),
-                              num_obs = n())
-
-calibration %>%
-  ggplot(aes(x= mean_actual)) +
-    geom_point(aes(y = mean_predicted, size= num_obs)) +
-    geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
-    ylim(0, 12000) + xlim(0, 12000) +
-    scale_y_continuous(name = "Avg. predicted sales", labels = comma, trans="log10", breaks = c(0, 500, 1000, 5000, 10000)) +
-    scale_x_continuous(name = "Avg. actual sales", labels = comma, trans="log10", breaks = c(0, 500, 1000, 5000, 10000)) 
+```{r, echo = FALSE}
+p_model1 <- fun_plot_model_eval("GLM Benchmark", glm_fit_full, glm_fit_just_returning, data_test, avg_sales_2012)
 ```
 
 
@@ -609,50 +631,76 @@ tune_grid <- expand.grid("alpha" = c(0, 1),
                          "lambda" = seq(from = 0.00, to = 1, by = 0.025)) ##this was pre-tuned to select best set of parameters to try
 
 set.seed(93)
-glmnet_fit <- train(total_sales_2013 ~ . -contact_id,
+glmnet_fit_full <- train(total_sales_2013 ~ . -contact_id,
                    method = "glmnet",
                    data = data_train,
                    trControl = train_control,
                    tuneGrid = tune_grid,
                    preProcess = c("center", "scale"))
+
+set.seed(93)
+glmnet_fit_just_returning  <- train(total_sales_2013 ~ . -contact_id,
+                   method = "glmnet",
+                   data = data_train_just_returning,
+                   trControl = train_control,
+                   tuneGrid = tune_grid,
+                   preProcess = c("center", "scale"))
 ```
 
-
-```{r}
-glmnet_predictions <- predict.train(glmnet_fit, newdata = data_test)
-RMSE(data_test$total_sales_2013, glmnet_predictions)
+```{r, echo = FALSE}
+p_model2 <- fun_plot_model_eval("GLMNet", glmnet_fit_full, glmnet_fit_just_returning, data_test, avg_sales_2012)
 ```
 
 ### Model 3 - single decision tree  
 
 ```{r}
 set.seed(93)
-rpart_fit <- train(total_sales_2013 ~ . -contact_id,
+rpart_fit_full <- train(total_sales_2013 ~ . -contact_id,
                    data = data_train,
+                   method = "rpart",
+                   tuneLength = 20,
+                   trControl = train_control)
+
+set.seed(93)
+rpart_fit_just_returning <- train(total_sales_2013 ~ . -contact_id,
+                   data = data_train_just_returning,
                    method = "rpart",
                    tuneLength = 20,
                    trControl = train_control)
 ```
 
-```{r}
-rpart_predictions <- predict.train(rpart_fit, newdata = data_test)
-RMSE(data_test$total_sales_2013, rpart_predictions)
+```{r, echo = FALSE}
+p_model3 <- fun_plot_model_eval("Single decision tree (rpart)", rpart_fit_full, rpart_fit_just_returning, data_test, avg_sales_2012)
 ```
 
 
 ### Model 4 - bagged tree or RF
 
 ```{r}
+#setting tuning parameters
+tunegrid <- expand.grid(.mtry = 7)
+
 set.seed(93)
-treebag_fit <- train(total_sales_2013 ~ . -contact_id,
+rf_fit_full <- train(total_sales_2013 ~ . -contact_id,
                    data = data_train,
-                   method = "treebag",
+                   method = "rpart",
+                   trControl = train_control)
+
+set.seed(93)
+rf_fit_just_returning <- train(total_sales_2013 ~ . -contact_id,
+                   data = data_train_just_returning,
+                   method = "rf",
+                   tuneGrid=tunegrid,
+                   ntree=100,
                    trControl = train_control)
 ```
 
-```{r}
-treebag_predictions <- predict.train(treebag_fit, newdata = data_test)
-RMSE(data_test$total_sales_2013, treebag_predictions)
+```{r, echo = FALSE}
+p_model4 <- fun_plot_model_eval("Single decision tree (rpart)", rf_fit_full, rf_fit_just_returning, data_test, avg_sales_2012)
+```
+
+```{r, echo = FALSE, fig.align='center', fig.width=15, fig.height=16}
+grid.arrange(p_model1, p_model2, p_model3, p_model4, ncol = 1)
 ```
 
 # Model performance evaluation and final words  
