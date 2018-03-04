@@ -554,41 +554,51 @@ glm_fit_just_returning <- train(total_sales_2013 ~ total_sales_2012,
 
 ```{r}
 glm_full_predictions <- predict.train(glm_fit_full, newdata = data_test)
+
 glm_just_returning_predictions <- predict.train(glm_fit_just_returning, newdata = data_test) %>%
                                     bind_cols(predicted_sales_w_corr = ., existing_2012_contact_id = data_test$existing_2012_contact_id, actual_sales = data_test$total_sales_2013) %>%
                                     mutate(predicted_sales_w_corr = ifelse(existing_2012_contact_id == "Yes", predicted_sales_w_corr, avg_sales_2012))
 
-glm_pred <- bind_cols(predicted = glm_full_predictions, glm_just_returning_predictions) %>% as.data.table()
+
+actual_vs_pred <- bind_cols(predicted = glm_full_predictions, glm_just_returning_predictions) %>% 
+                    as.data.table()
 
 
 rmse_full <- RMSE(data_test$total_sales_2013, 
-                  glm_pred$predicted)
+                  actual_vs_pred$predicted)
 rmse_just_returning <- RMSE(data_test[existing_2012_contact_id == "Yes"]$total_sales_2013,
-                            glm_pred[existing_2012_contact_id == "Yes"]$predicted)
+                            actual_vs_pred[existing_2012_contact_id == "Yes"]$predicted)
 
 rmse_corr_full <- RMSE(data_test$total_sales_2013,
-                       glm_just_returning_predictions$predicted_sales_w_corr)
+                       actual_vs_pred$predicted_sales_w_corr)
 rmse_corr_just_returning <- RMSE(data_test[existing_2012_contact_id == "Yes"]$total_sales_2013,
-                                 glm_just_returning_predictions[existing_2012_contact_id == "Yes"]$predicted_sales_w_corr)
+                                 actual_vs_pred[existing_2012_contact_id == "Yes"]$predicted_sales_w_corr)
 
+
+rmse_full
+rmse_just_returning
+rmse_corr_full
+rmse_corr_just_returning
+
+
+calibration <- actual_vs_pred %>%
+                    mutate(category = cut(actual_sales,
+                                          c(0, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, Inf),
+                                          include.lowest = TRUE)) %>%
+                    group_by(category) %>%
+                    summarize(mean_actual = mean(actual_sales),
+                              mean_predicted = mean(predicted),
+                              mean_predicted_w_corr = mean(predicted_sales_w_corr),
+                              num_obs = n())
+
+calibration %>%
+  ggplot(aes(x= mean_actual)) +
+    geom_point(aes(y = mean_predicted, size= num_obs)) +
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+    ylim(0, 12000) + xlim(0, 12000) +
+    scale_y_continuous(name = "Avg. predicted sales", labels = comma, trans="log10", breaks = c(0, 500, 1000, 5000, 10000)) +
+    scale_x_continuous(name = "Avg. actual sales", labels = comma, trans="log10", breaks = c(0, 500, 1000, 5000, 10000)) 
 ```
-
-
-```{r}
-glm_test_pred <- bind_cols(actual = data_test$total_sales_2013, predicted = glm_predictions)
-mean(df_for_prediction$total_sales_2013)
-sd(df_for_prediction$total_sales_2013)
-
-ggplot(data = glm_test_pred, aes(x=actual, y=predicted)) +
-  geom_point()
-
-##TODO:
- #- predict new customers just by the average in 2012
- #- visualize in two facets
- #- with 45 grid line signalling "good" predictions
- #- build function for this that can be used in all models
-```
-
 
 
 ### Model 2 - glmnet with LASSO & ridge - parameter tuned
