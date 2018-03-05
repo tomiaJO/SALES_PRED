@@ -27,7 +27,6 @@ library(reshape)
 
 library(caret)
 library(glmnet)
-library(randomForest)
 
 library(knitr)
 knitr::opts_chunk$set(warning = FALSE)
@@ -42,17 +41,6 @@ set.seed(93)
 RMSE <- function(x, true_x) sqrt(mean((x - true_x)^2))
 ```
 
-```{r, echo=FALSE}
-fun_count_na <- function(dt) {
-  ##counts and reports the missing observations for each column in a data.table object
-  missing_values <- as.data.table(t(dt[, lapply(.SD, function(x) sum(is.na(x))), .SDcols = names(dt)]),
-                                  keep.rownames = TRUE)
-  setnames(missing_values, c("variable", "NA Count"))
-  
-  return(missing_values[order(-`NA Count`)])
-}
-```
-
 # Purpose definition
 
 The goal of this exercise is to predict sales for the coming year for different customers (groups of customers). I'll use standard prediction techniques and practices to create predictive models, while explaining the decision I've made along the code as well.  
@@ -65,7 +53,7 @@ The presentation of the analysis is built of the following parts:
     1. Data review & cleaning  
     2. Exploratory data analysis  
     3. Featuring engineering  
-    4. Model & model selection
+    4. Model & model selection  
     5. Performance evaluation  
     
 An important feature of data analysis is that it is an iterative process - we are likely to go back to earlier steps once we learn something new about the data to expand what we did.  
@@ -85,6 +73,16 @@ head(data)
 One thing to notice is that we have a field containing dates, however R treats it as a character column by default. 
   
 We'll correct that in the next step, but before that let's check if there is any observation that will require some fixing as well:
+```{r, echo=FALSE}
+fun_count_na <- function(dt) {
+  ##counts and reports the missing observations for each column in a data.table object
+  missing_values <- as.data.table(t(dt[, lapply(.SD, function(x) sum(is.na(x))), .SDcols = names(dt)]),
+                                  keep.rownames = TRUE)
+  setnames(missing_values, c("variable", "NA Count"))
+  
+  return(missing_values[order(-`NA Count`)])
+}
+```
 
 ```{r, echo=FALSE}
 fun_count_na(data)
@@ -156,8 +154,7 @@ per_contact_avgs %>%
 ```
   
 Below is a visualization of the distribution of transactions among customers, broken into two groups, one having more than 25 transactions, and one having less.  
-```{r, fig.width=8, fig.height=3, fig.align='center'}
-##visualize
+```{r, echo = FALSE, fig.width=8, fig.height=3, fig.align='center'}
 per_contact_avgs %>%
   mutate(transaction_category = ifelse(transaction_count < 25, 
                                        "Less than 25 transactions",
@@ -213,10 +210,12 @@ p2 <- ggplot() +
 grid.arrange(p1, p2, ncol = 1)
 ```
 
-## bit further text on this is needed... specially the avg. sales part
+Returning customers do spend more in total - not much news, but it's good to confirm with data.  
+More interesting is the second plot, which show the distribution of _average spending_ by customer-type split. Returning customers spend a bit more on average, but both distributions are skewed to the right - and larger transactions happen relatively more often to one-timers!
+  
 
-
-The second important factor to understand is how seasonality (basically time of purchase) is related to sales amounts.
+The second important factor to understand is how seasonality (basically time of purchase) is related to sales amounts. 
+For modeling, we will build solutions that predict the the 2013 total (generally, the next year's total) from 2012 data - so it's good to know if there is any interesting dynamics going on for the time dimension of sales. 
 
 ```{r, echo = FALSE}
 ordered_year_month <- data %>%
@@ -239,32 +238,41 @@ data <- data %>%
 ```
 
 ```{r, echo = FALSE}
-fun_plot_trend <- function(df1, x_var, y_var, x_breaks) {
+fun_plot_trend <- function(df1, x_var, y_var, x_breaks, yLabel, chartColor) {
   
   p <- ggplot(data = df1, aes_string(x= x_var)) + 
-    geom_point(aes_string(y = y_var)) +
-    geom_line(aes_string(y = y_var), group=1) +
-    scale_x_discrete(breaks = x_breaks)  
+    geom_point(aes_string(y = y_var), color = chartColor, size = 2.5) +
+    geom_line(aes_string(y = y_var), color = chartColor, size = 1.2, group=1) +
+    scale_x_discrete(breaks = x_breaks) +
+    scale_y_continuous(labels = comma) +
+    labs(x = "Month", y = yLabel)
+  
     
   return(p)
 }
 ```
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, fig.width=10, fig.align='center', fig.height=9}
 month_breaks <- ordered_year_month$purchase_year_month[seq(0, 24, 3)]
 
 p1 <- data %>%
   group_by(purchase_year_month) %>%
   summarize(sales = sum(sales_amount)) %>%
   fun_plot_trend(x_var = "purchase_year_month", 
-                 y_var = "sales", x_breaks = month_breaks)
+                 y_var = "sales", 
+                 x_breaks = month_breaks,
+                 yLabel = "Total Sales",
+                 chartColor = "darkblue")
   
   
 p2 <- data %>%
   group_by(purchase_year_month) %>%
   summarize(transaction_count = n_distinct(order_id)) %>%
   fun_plot_trend(x_var = "purchase_year_month", 
-                 y_var = "transaction_count", x_breaks = month_breaks)
+                 y_var = "transaction_count", 
+                 x_breaks = month_breaks,
+                 yLabel = "Total Transaction #",
+                 chartColor = "orange")
 
 p3 <- data %>%
   group_by(purchase_year_month, order_id) %>%
@@ -272,29 +280,19 @@ p3 <- data %>%
   group_by(purchase_year_month) %>%
   summarize(avg_sales_amount = mean(sales_amount)) %>%
   fun_plot_trend(x_var = "purchase_year_month", 
-                 y_var = "avg_sales_amount", x_breaks = month_breaks)
+                 y_var = "avg_sales_amount", 
+                 x_breaks = month_breaks,
+                 yLabel = "Avg. Sales per Order",
+                 chartColor = "purple")
 
 grid.arrange(p1, p2, p3, ncol = 1)
-
-##todo tidy-up, explain
 ```
 
-
-```{r, echo = FALSE}
-#TODO: break this out by purchase count 0 or 1+ by contact_id
-data %>%
-  group_by(purchase_year, purchase_month, contact_id, order_id) %>%
-  summarize(sales_amount = sum(sales_amount)) %>%
-  group_by(purchase_year, purchase_month, contact_id) %>%
-  summarize(avg_sales_amount = mean(sales_amount)) %>%
-  group_by(purchase_year, purchase_month) %>%
-  summarize(avg_sales_amount = mean(avg_sales_amount)) %>%
-  ggplot(aes(x = as.factor(purchase_month), y = avg_sales_amount)) +
-    geom_bar(stat="identity") + 
-    scale_x_discrete(breaks = c(1:12)) +
-    facet_grid(~purchase_year)
-```
-
+Total sales per month is visibly mostly driven by transaction count, which shows a lot of variation over time ( _reminder: here we talk about "total totals", not per customer numbers_).  
+On the other hand, avg. sales per order clearly showed some upwards trend, specially in the second half of 2013. This could mean either customers are buying more pricey items, or they are buying the same stuff as before, but per item costs have gone up.  
+For a more detailed modeling, this is something worth exploring, however I am not going to go into further depths here.  
+  
+  
 # Feature engineering  
 
 In this section, we'll be getting the data in shape to use for prediction.  
@@ -442,45 +440,25 @@ Making predictions on the zeros is one way to handle this issue - another one wo
 We'll see in the modeling phase which one makes more sense in this case.  
 
 ## Visual exploration of the "new" features  
-
-```{r}
+  
+Without much effort, we can visualize all of our predictors vs. our target.  
+Not suprisingly all will have positive relationship, more or less linear ones.  
+However, we shouldn't read to much into these graphs, given most values clutter on the lower end of the scale - this is just a "lazy" check to make sure all makes sense.  
+```{r, echo=FALSE, fig.width=15, fig.height = 39, fig.align='center'}
 plotlist <- list()
 i = 1
-for(var in names(df_for_prediction)[c(-1,-2)][1:2]) {
+for(var in names(df_for_prediction)[c(-1, -2, -9)]) {
   plotlist[[i]] <- df_for_prediction %>%
                   ggplot(aes_string(x= var, y= "total_sales_2013")) +
                     geom_point(alpha = 0.1) +
-                    geom_smooth()
+                    geom_smooth() 
+                    #scale_y_continuous(trans="log10") +
+                    #scale_x_continuous(trans="log10")
   i = i + 1
 }
 
 grid.arrange(grobs = plotlist, ncol = 3) 
 ```
-
-```{r, echo = FALSE, fig.width=10, fig.height=6, fig.align='center'}
-p1 <- df_for_prediction %>%
-  ggplot(aes(x= total_sales_2012, y= total_sales_2013)) +
-    geom_point(alpha = 0.1) +
-    geom_smooth()
-
-p2 <- df_for_prediction %>%
-  ggplot(aes(x= total_line_items_2012, y= total_sales_2013)) +
-    geom_point(alpha = 0.1) +
-    geom_smooth()
-
-p3 <- df_for_prediction %>%
-  ggplot(aes(x= total_purchases_2012, y= total_sales_2013)) +
-    geom_point(alpha = 0.1) +
-    geom_smooth()
-
-p4 <- df_for_prediction %>%
-  ggplot(aes(x= total_quantity_2012, y= total_sales_2013)) +
-    geom_point(alpha = 0.1) +
-    geom_smooth()
-
-grid.arrange(p1, p2, p3, p4, ncol = 2)
-```
-
 
 
 # Modeling & model selection  
@@ -496,9 +474,9 @@ Selection criteria will be simply RMSE, which I'll try to optimize not just in g
 Let's separate the different datasets we will use for the different steps. Caret helps us with this one as well, hence we don't need to hustle with randomization.  
 ( _Note: At this point we would need to be cautious with time-series data and partitioning. However, the way the dataset was engineered, this is no longer a concern._)
 ```{r}
-training_ratio <- 0.6
+training_ratio <- 0.7
 
-set.seed(93) #for reproducibility
+set.seed(618) #for reproducibility
 train_indices <- createDataPartition(y = df_for_prediction[["total_sales_2013"]],
                                      times = 1,
                                      p = training_ratio,
@@ -506,9 +484,9 @@ train_indices <- createDataPartition(y = df_for_prediction[["total_sales_2013"]]
 data_train <- df_for_prediction[train_indices, ]
 data_test <- df_for_prediction[-train_indices, ]
 
-split_ratio <- 3/4
+split_ratio <- 2/3
 
-set.seed(93) #for reproducibility
+set.seed(618) #for reproducibility
 perf_indices <- createDataPartition(y = data_test[["total_sales_2013"]],
                                      times = 1,
                                      p = split_ratio,
@@ -517,7 +495,7 @@ data_test <- data_test[perf_indices, ]
 data_perf <- data_test[-perf_indices, ]
 ```
   
-We'll be using 60% of the all observations for training&tunining, 30% for model selection, and a third set of 10% for the final evaulation of the best model's performance.  
+We'll be using 70% of the all observations for training&tunining, 20% for model selection, and a third set of 10% for the final evaulation of the best model's performance.  
   
 ## Training & parameter tuning  
 
@@ -534,6 +512,18 @@ train_control <- trainControl(method = "cv",
                               number = 10)
 ```
 
+Earlier I've mentioned that the larger part of the customers are one-off purchasers - this makes prediction for them harder, as we don't have anything to use for profiling that's specific for them.  
+  
+I was trying two approaches:  
+    1. "no history" is represented by 0s in the predictors  
+    2. training models only for the returning customers - for all others, we'll just use the average spending in 2012 per customer as predictors for 2013  
+    
+As it turned out, the second approach gave slightly better results, so when discussing the performance of different models, that's what I'm going to focus on.  
+  
+We can even ask the question whether it makes sense to bother for predicting for totally new customers? In real life scenarios, where there is $ impact, I would likely approach them with a very different approach, but in general, we can't just disregard the majority of our customers.  
+
+_Note: the solution of using the avg. sales per customer from the previous year is very unsophisticated - we could tune this further easily. Simple ideas come to mind: account for change YoY in sales, as well as take average only for one-off customers in 2012. In this case, however, I'm only using the basic approach, and focus on returning customer more._  
+
 ```{r}
 data_train_full <- copy(data_train)
 data_train_just_returning <- data_train %>%
@@ -542,23 +532,26 @@ data_train_just_returning <- data_train %>%
 
 avg_sales_2012 <- mean(df_for_prediction$total_sales_2012)
 ```
+
 ### Benchmark model - simple glm  
   
-Training the model:
+Training the model(s):
 ```{r}
 #base model
 set.seed(93)
 glm_fit_full <- train(total_sales_2013 ~ total_sales_2012,
-                       method = "glm",
+                       method = "lm",
                        data = data_train_full,
                        trControl = train_control)
 set.seed(93)
 glm_fit_just_returning <- train(total_sales_2013 ~ total_sales_2012,
-                                 method = "glm",
+                                 method = "lm",
                                  data = data_train_just_returning,
                                  trControl = train_control)
 ```
-
+  
+  
+For all models, I'll evalute performance later - so let's just go onto our 2nd model.  
 ```{r, echo = FALSE}
 fun_plot_model_eval <- function(model= NULL, fit_full, fit_just_returning, testdata, avgSales_2012) {
   #creates "calibration" plots & calculates RMSE for predictions
@@ -631,10 +624,12 @@ p_model1 <- fun_plot_model_eval("GLM Benchmark", glm_fit_full, glm_fit_just_retu
 
 ### Model 2 - glmnet with LASSO & ridge - parameter tuned
 
+The second model we are going to train is glmnet, applying LASSO & Ridge regularization.   
+This is a nice way to train a linear model, without worrying much about overfitting or variable selection - L1/L2 penalities will do that automatically.
 
 ```{r}
 tune_grid <- expand.grid("alpha" = c(0, 1),
-                         "lambda" = seq(from = 0.00, to = 1, by = 0.025)) ##this was pre-tuned to select best set of parameters to try
+                         "lambda" = seq(from = 0.00, to = 1, by = 0.025))
 
 set.seed(93)
 glmnet_fit_full <- train(total_sales_2013 ~ . -contact_id,
@@ -657,7 +652,30 @@ glmnet_fit_just_returning  <- train(total_sales_2013 ~ . -contact_id,
 p_model2 <- fun_plot_model_eval("GLMNet", glmnet_fit_full, glmnet_fit_just_returning, data_test, avg_sales_2012)
 ```
 
+
+```{r}
+data_train_just_returning_log <- data_train_just_returning %>%
+                                  mutate(log_total_sales_2013 = log(total_sales_2013),
+                                         log_total_sales_2012 = log(total_sales_2012))
+
+tune_grid <- expand.grid("alpha" = 0,
+                         "lambda" = seq(from = 0.00, to = 0.25, by = 0.005))
+
+set.seed(93)
+glmnet_fit_just_returning_log  <- train(log_total_sales_2013 ~ . -total_sales_2013,
+                   method = "glmnet",
+                   data = data_train_just_returning_log,
+                   trControl = train_control,
+                   tuneGrid = tune_grid,
+                   preProcess = c("center", "scale"))
+```
+
 ### Model 3 - single decision tree  
+  
+Moving into a bit different territory - decision trees.  
+They are regularly used for classification problems, however they can be helpful for regression as well.  
+The advantage of trees is that they are good at addressing non-linear patterns in the data - something we can only do in linear models by feature engingeering (e.g. adding polynomial terms).  
+Single trees have some disadvantages as well, which I'll discuss in the next part.
 
 ```{r}
 set.seed(93)
@@ -679,40 +697,53 @@ rpart_fit_just_returning <- train(total_sales_2013 ~ . -contact_id,
 p_model3 <- fun_plot_model_eval("Single decision tree (rpart)", rpart_fit_full, rpart_fit_just_returning, data_test, avg_sales_2012)
 ```
 
-
-### Model 4 - Random Forest
+### Model 4 - Bagging (/ Random Forest)  
+  
+So what is the (theoretical) problem with single trees? Well, they are implemented as "greedy" algorithms, which are prone to get stuck in local optimum.  
+  
+My original implementation used Random Forest, which addresses this in two steps:  
+    1. By bootstrapping the dataset, and fitting many trees on the new samples. This makes the results more robust  
+    2. By always only using a subset of the predictors at each split. Simple bootstrapping might still produce very correlated trees, this helps with that  
+    
+Fitting RF takes hours in the caret implementation unforunately, and as it turned out the results are not that good.
+So I switched back to simple treebag, which I could reran more easily as needed.
 
 ```{r}
-#setting tuning parameters
-tunegrid <- expand.grid(.mtry = 7)
-
 set.seed(93)
 rf_fit_full <- train(total_sales_2013 ~ . -contact_id,
                    data = data_train,
-                   method = "rf",
-                   tuneGrid=tunegrid,
-                   ntree=1000,
+                   method = "treebag",
+                   tuneLength = 20,
+                   ntree = 250,
                    trControl = train_control)
 
 set.seed(93)
 rf_fit_just_returning <- train(total_sales_2013 ~ . -contact_id,
                    data = data_train_just_returning,
-                   method = "rf",
-                   tuneGrid=tunegrid,
-                   ntree=1000,
+                   method = "treebag",
+                   tuneLength = 20,
+                   ntree = 250,
                    trControl = train_control)
 ```
 
 ```{r, echo = FALSE}
-p_model4 <- fun_plot_model_eval("Random Forest - 1000 trees", rf_fit_full, rf_fit_just_returning, data_test, avg_sales_2012)
+p_model4 <- fun_plot_model_eval("Bagging - 250 trees", rf_fit_full, rf_fit_just_returning, data_test, avg_sales_2012)
 ```
 
+## Model selection  
+
+Let's start by a summary visualization of the results, which can be seen below.
+RMSEs and plots are based on how the models performed on the held-out test sets, not the original training data.  
 ```{r, echo = FALSE, fig.align='center', fig.width=15, fig.height=16}
 grid.arrange(p_model1, p_model2, p_model3, p_model4, ncol = 1)
 ```
 
+```{r}
+
+```
+
 # Model performance evaluation and final words  
 
-## Performance evaulation  
+## Performance evaluation  
 
 ## External validity?  
