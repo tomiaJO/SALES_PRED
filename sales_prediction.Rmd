@@ -1,14 +1,13 @@
 ---
 title: "Sales Prediction Exercise"
-author: "Tamas Koncz"
 date: '2018-03-04'
 output:
-  html_document:
+  html_notebook:
     df_print: paged
     toc: true
     number_sections: true
     theme: united
-  html_notebook:
+  html_document:
     df_print: paged
     toc: true
     number_sections: true
@@ -454,12 +453,12 @@ for(var in names(df_for_prediction)[c(-1, -2, -9)]) {
                   ggplot(aes_string(x= var, y= "total_sales_2013")) +
                     geom_point(alpha = 0.1) +
                     geom_smooth() +
-                    scale_y_continuous(trans="log10", labels = comma) +
-                    scale_x_continuous(trans="log10", labels = comma)
+                    scale_y_continuous(labels = comma) +
+                    scale_x_continuous(labels = comma)
   i = i + 1
 }
 
-## grid.arrange(grobs = plotlist, ncol = 3) 
+grid.arrange(grobs = plotlist, ncol = 3) 
 ```
 
 
@@ -476,9 +475,9 @@ Selection criteria will be simply RMSE, which I'll try to optimize not just in g
 Let's separate the different datasets we will use for the different steps. Caret helps us with this one as well, hence we don't need to hustle with randomization.  
 ( _Note: At this point we would need to be cautious with time-series data and partitioning. However, the way the dataset was engineered, this is no longer a concern._)
 ```{r}
-training_ratio <- 0.7
+training_ratio <- 0.6
 
-set.seed(618) #for reproducibility
+set.seed(93) #for reproducibility
 train_indices <- createDataPartition(y = df_for_prediction[["total_sales_2013"]],
                                      times = 1,
                                      p = training_ratio,
@@ -486,9 +485,9 @@ train_indices <- createDataPartition(y = df_for_prediction[["total_sales_2013"]]
 data_train <- df_for_prediction[train_indices, ]
 data_test <- df_for_prediction[-train_indices, ]
 
-split_ratio <- 2/3
+split_ratio <- 3/4
 
-set.seed(618) #for reproducibility
+set.seed(93) #for reproducibility
 perf_indices <- createDataPartition(y = data_test[["total_sales_2013"]],
                                      times = 1,
                                      p = split_ratio,
@@ -497,7 +496,7 @@ data_test <- data_test[perf_indices, ]
 data_perf <- data_test[-perf_indices, ]
 ```
   
-We'll be using 70% of the all observations for training&tunining, 20% for model selection, and a third set of 10% for the final evaulation of the best model's performance.  
+We'll be using 60% of the all observations for training&tunining, 30% for model selection, and a third set of 10% for the final evaulation of the best model's performance.  
   
 ## Training & parameter tuning  
 
@@ -524,7 +523,7 @@ As it turned out, the second approach gave slightly better results, so when disc
   
 We can even ask the question whether it makes sense to bother for predicting for totally new customers? In real life scenarios, where there is $ impact, I would likely approach them with a very different approach, but in general, we can't just disregard the majority of our customers.  
 
-_Note: the solution of using the avg. sales per customer from the previous year is very unsophisticated - we could tune this further easily. Simple ideas come to mind: account for change YoY in sales, as well as take average only for one-off customers in 2012. In this case, however, I'm only using the basic approach, and focus on returning customer more._  
+_Note: the solution of using the avg. sales per customer from the previous year is very unsophisticated - we could tune this further easily. Simple ideas come to mind: account for trend YoY in sales, as well as take average only for one-off customers in 2012. In this case, however, I'm only using the basic approach, and focus on returning customer more._  
 
 ```{r}
 data_train_full <- copy(data_train)
@@ -563,8 +562,8 @@ fun_plot_model_eval <- function(model= NULL, fit_full, fit_just_returning, testd
   
   just_returning_predictions <- predict.train(fit_just_returning, newdata = testdata) %>%
                                       bind_cols(predicted_sales_w_corr = ., 
-                                                existing_2012_contact_id = data_test$existing_2012_contact_id, 
-                                                actual_sales = data_test$total_sales_2013) %>%
+                                                existing_2012_contact_id = testdata$existing_2012_contact_id, 
+                                                actual_sales = testdata$total_sales_2013) %>%
                                       mutate(predicted_sales_w_corr = ifelse(existing_2012_contact_id == "Yes", 
                                                                              predicted_sales_w_corr, avg_sales_2012))
 
@@ -635,7 +634,7 @@ tune_grid <- expand.grid("alpha" = c(0, 1),
                          "lambda" = seq(from = 0.00, to = 1, by = 0.025))
 
 set.seed(93)
-glmnet_fit_full <- train(as.formula(paste("total_sales_2013", paste(predictor_names, collapse="+"), sep="~")),
+glmnet_fit_full <- train(total_sales_2013 ~ . -contact_id,
                    method = "glmnet",
                    data = data_train,
                    trControl = train_control,
@@ -643,13 +642,14 @@ glmnet_fit_full <- train(as.formula(paste("total_sales_2013", paste(predictor_na
                    preProcess = c("center", "scale"))
 
 set.seed(93)
-glmnet_fit_just_returning  <- train(as.formula(paste("total_sales_2013", paste(predictor_names, collapse="+"), sep="~")),
+glmnet_fit_just_returning  <- train(total_sales_2013 ~ . -contact_id,
                     method = "glmnet",
                    data = data_train_just_returning,
                    trControl = train_control,
                    tuneGrid = tune_grid,
                    preProcess = c("center", "scale"))
 ```
+  
 
 ```{r, echo = FALSE}
 p_model2 <- fun_plot_model_eval("GLMNet", glmnet_fit_full, glmnet_fit_just_returning, data_test, avg_sales_2012)
@@ -715,7 +715,9 @@ rf_fit_just_returning <- train(total_sales_2013 ~ . -contact_id,
 ```{r, echo = FALSE}
 p_model4 <- fun_plot_model_eval("Bagging - 250 trees", rf_fit_full, rf_fit_just_returning, data_test, avg_sales_2012)
 ```
+  
 
+     
 ## Model selection  
 
 Let's start by a summary visualization of the results, which can be seen below.
@@ -724,12 +726,82 @@ RMSEs and plots are based on how the models performed on the held-out test sets,
 grid.arrange(p_model1, p_model2, p_model3, p_model4, ncol = 1)
 ```
 
+So.. first things first: how can we evaulate the overall performance of our models?  
+The best RMSE achieved is ~830 - that looks very large!  
+  
+But let's remember for a moment that our data exhibits very large variaton as well:
 ```{r}
-
+data_train_just_returning %>%
+  summarize(avg = mean(total_sales_2013),
+            std_dev = sd(total_sales_2013))
 ```
+
+This still doesn't make me overly happy with the performance, but at least we know that it might not be that bad.  
+  
+Another reason for the not-so-great performance can be read from the plots: the models are exhibiting strong bias for different customer groups!  
+     - For low-spenders, we overpredict on average  
+     - For mid-spenders, we tend to underpredict on average  
+     - While the biggest spenders are OK more or less  
+
+My original suspection was that this is due to the heavily skewed distribution of the sales data. However, after trying multiple correction (log transformations, or filtering top 1%) the models still exhibited similar behavior.  
+The above explanation still makes sense to me - RMSE will penalize larger mispredictions, which are more likely to happen for the tail sales numbers.  
+
+Let's assume for now that there is nothing we could do about the results, and we have to believe one of our models is truly the best. Which one should we choose?  
+  
+Generally, the results are similar, but the GLMNet fit stands out a bit.  
+  
+It's a good question to ask ourselves whether that makes sense or not. At first, I expected the original RF to perform best - however, we can see that tree-based methods lag behind.
+
+One explanation can be that the actual functional form that we are trying to estimate is linear - in this case, tree methods, however good they are at capturing nonlinearities, will be in disadvantage.  
+  
+And if we take a look at the variable important scores extract from our models, we'll see that the most imporant variables seem to be actually linear in total_sales_2013 when we visualized them earlier:  
+```{r, echo = FALSE, fig.align='center', fig.width=9, fig.height=7}
+t1 <- data.table(varImp(rf_fit_just_returning, scale = T)$importance, 
+      keep.rownames = TRUE) %>%
+      setnames(c("variable", "Importance Score")) %>%
+      mutate(model = "Treebag")
+      
+t2 <- data.table(varImp(glmnet_fit_just_returning, scale = T)$importance, 
+      keep.rownames = TRUE) %>%
+      setnames(c("variable", "Importance Score")) %>%
+      mutate(model = "GLMNet")
+
+t1 %>%
+  rbind(t2) %>%
+  mutate(variable = reorder(variable, `Importance Score`)) %>%
+  ggplot(aes(x=variable, y= `Importance Score`)) +
+    geom_line(color = "lightblue", size = 1.1) +
+    geom_point(aes(color = model), size = 2.5) +
+    coord_flip()
+```
+
+With this explanation (+based on best RMSE), I'm comfortable taking GLMNet as our best model. 
 
 # Model performance evaluation and final words  
 
 ## Performance evaluation  
 
+Let do one final step of evalation, with the second held-out set we kept. 
+This was needed, as the first one was used to select our best model, hence it might biased towards it as well. 
+
+```{r, echo = FALSE, fig.width=15, fig.height=6}
+fun_plot_model_eval("GLMNet", glmnet_fit_full, glmnet_fit_just_returning, data_perf, avg_sales_2012)
+```
+
+Okay... so our RMSE metrics look even worse than before.  
+  
+Is that a concern regarding in terms of the previous "good" performance being just a result of chance?  
+I don't think so. This last sample is smaller - hence, a few big mispredictions can drive up RMSE.  
+The plots show that the fit is similar to what we had before, hence I'm going to accept that this model is the best I could do now.  
+  
+Let's consider a couple of possible improvements:  
+  1. Enhanced scope - by more conscious definition of our target, we could filter to narrow the data, or build multiple models for different groups of customers  
+  2. More features - either we can create further ones from the dataset (e.g. try if 0 costs actually represent promotions), or see if we can get more features from external sources  
+  3. Selecting a better model form, which might fit the data better  
+  4. Depending on the final goal of the analysis, we might decide to create our own loss function. By defaulting to RMSE for model selection, we used one which is symmetric and non-linear -- both of these attributes could be tailored to the exact need.  
+
 ## External validity?  
+
+With all prediction exercises, we need to ask ourselves whether our results would be applicable outside of the current dataset.  
+In this case, there are some concerns regarding that - specially as we only used two years of data, so we can't really predict how good we can perform over time.  
+Also, as speciality of the data, majority customers were new - and as discussed, in lack of historical patterns, we are very limited in what we can do. 
