@@ -444,6 +444,8 @@ We'll see in the modeling phase which one makes more sense in this case.
 Without much effort, we can visualize all of our predictors vs. our target.  
 Not suprisingly all will have positive relationship, more or less linear ones.  
 However, we shouldn't read to much into these graphs, given most values clutter on the lower end of the scale - this is just a "lazy" check to make sure all makes sense.  
+
+
 ```{r, echo=FALSE, fig.width=15, fig.height = 39, fig.align='center'}
 plotlist <- list()
 i = 1
@@ -451,13 +453,13 @@ for(var in names(df_for_prediction)[c(-1, -2, -9)]) {
   plotlist[[i]] <- df_for_prediction %>%
                   ggplot(aes_string(x= var, y= "total_sales_2013")) +
                     geom_point(alpha = 0.1) +
-                    geom_smooth() 
-                    #scale_y_continuous(trans="log10") +
-                    #scale_x_continuous(trans="log10")
+                    geom_smooth() +
+                    scale_y_continuous(trans="log10", labels = comma) +
+                    scale_x_continuous(trans="log10", labels = comma)
   i = i + 1
 }
 
-grid.arrange(grobs = plotlist, ncol = 3) 
+## grid.arrange(grobs = plotlist, ncol = 3) 
 ```
 
 
@@ -628,11 +630,12 @@ The second model we are going to train is glmnet, applying LASSO & Ridge regular
 This is a nice way to train a linear model, without worrying much about overfitting or variable selection - L1/L2 penalities will do that automatically.
 
 ```{r}
+predictor_names <- names(data_train)[c(-1:-16)]
 tune_grid <- expand.grid("alpha" = c(0, 1),
                          "lambda" = seq(from = 0.00, to = 1, by = 0.025))
 
 set.seed(93)
-glmnet_fit_full <- train(total_sales_2013 ~ . -contact_id,
+glmnet_fit_full <- train(as.formula(paste("total_sales_2013", paste(predictor_names, collapse="+"), sep="~")),
                    method = "glmnet",
                    data = data_train,
                    trControl = train_control,
@@ -640,8 +643,8 @@ glmnet_fit_full <- train(total_sales_2013 ~ . -contact_id,
                    preProcess = c("center", "scale"))
 
 set.seed(93)
-glmnet_fit_just_returning  <- train(total_sales_2013 ~ . -contact_id,
-                   method = "glmnet",
+glmnet_fit_just_returning  <- train(as.formula(paste("total_sales_2013", paste(predictor_names, collapse="+"), sep="~")),
+                    method = "glmnet",
                    data = data_train_just_returning,
                    trControl = train_control,
                    tuneGrid = tune_grid,
@@ -652,23 +655,6 @@ glmnet_fit_just_returning  <- train(total_sales_2013 ~ . -contact_id,
 p_model2 <- fun_plot_model_eval("GLMNet", glmnet_fit_full, glmnet_fit_just_returning, data_test, avg_sales_2012)
 ```
 
-
-```{r}
-data_train_just_returning_log <- data_train_just_returning %>%
-                                  mutate(log_total_sales_2013 = log(total_sales_2013),
-                                         log_total_sales_2012 = log(total_sales_2012))
-
-tune_grid <- expand.grid("alpha" = 0,
-                         "lambda" = seq(from = 0.00, to = 0.25, by = 0.005))
-
-set.seed(93)
-glmnet_fit_just_returning_log  <- train(log_total_sales_2013 ~ . -total_sales_2013,
-                   method = "glmnet",
-                   data = data_train_just_returning_log,
-                   trControl = train_control,
-                   tuneGrid = tune_grid,
-                   preProcess = c("center", "scale"))
-```
 
 ### Model 3 - single decision tree  
   
